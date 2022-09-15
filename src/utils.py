@@ -19,17 +19,30 @@ def partitions(i,k):
     return f(i,k)
 
 
-def partitions_bottom_up(i, k):
+def partitions_with_zeros(i,k):
     '''
-   Yields partitions of i on k elements with all the elements of partition at least 1
+    Format:
+    p[:-1] - partiotion
+    p[-1] - True if it includes zero 
     '''
-    if i < k:
-        return None 
-    memo = []
-    x = i-k+1
-    y = 1
-    ans = [(i,)]
-    while not (x == i and y == k):
-        x += 1
-    raise NotImplementedError
-    return ans
+    @lru_cache(maxsize=None)
+    def f(i,k):
+        if k <= 0:
+            return []
+        if k==1:
+            return [(i,i==0)]
+        ans = []
+        for j in range(0, i+1):
+            for p in f(i-j, k-1):
+                new_partition = (j,) + p[:-1] + (p[-1] or (j == 0),)
+                ans.append(new_partition)
+        return ans 
+    clean = []
+    zeros = []
+    for p in f(i,k):
+        if p[-1]:
+            zeros.append(p[:-1])
+        else:
+            clean.append(p[:-1])
+    return clean, zeros
+
