@@ -1,4 +1,5 @@
 from functools import lru_cache
+from tkinter.messagebox import RETRY
 
 def partitions(i,k):
     @lru_cache(maxsize=None)
@@ -37,12 +38,14 @@ def partitions_with_zeros(i,k):
                 new_partition = (j,) + p[:-1] + (p[-1] or (j == 0),)
                 ans.append(new_partition)
         return ans 
-    clean = []
-    zeros = []
-    for p in f(i,k):
-        if p[-1]:
-            zeros.append(p[:-1])
-        else:
-            clean.append(p[:-1])
-    return clean, zeros
+    return f(i,k)
+#    clean = []
+#    zeros = []
+#    for p in f(i,k):
+#        if p[-1]:
+#            zeros.append(p[:-1])
+#        else:
+#            clean.append(p[:-1])
+ #   return clean, zeros
+
 
