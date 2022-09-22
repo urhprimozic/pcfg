@@ -2,15 +2,32 @@ from functools import lru_cache
 from itertools import chain, combinations
 from scipy.special import binom
 
+def exp(q,n):
+    '''
+    Fast exponential. Returns q^n
+    '''
+    @lru_cache(maxsize=None)
+    def f(q,n):
+        if n == 1:
+            return q
+        if n == 0:
+            return 1
+        if n % 2 == 0:
+            return f(q,n/2)**2
+        return q * (f(q,(n-1)/2)**2)
+    return f(q, n)
 
 def multinomial(*args):
     '''
     Return multinomial copeficient of args
     From https://stackoverflow.com/a/46374719/5170644
     '''
-    if len(args) == 1:
-        return 1
-    return binom(sum(args), args[-1]) * multinomial(*args[:-1])
+    @lru_cache(maxsize=None)
+    def f(*args):
+        if len(args) == 1:
+            return 1
+        return binom(sum(args), args[-1]) * f(*args[:-1])
+    return f(*args)
 
 def partitions(i,k):
     @lru_cache(maxsize=None)
