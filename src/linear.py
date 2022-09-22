@@ -1,6 +1,6 @@
 from audioop import mul
 from math import factorial
-from utils import partitions_with_zeros, powerset, even, multinomial
+from utils import partitions_with_zeros, powerset, even, multinomial, exp
 from tqdm import tqdm
 from nltk import PCFG, nonterminals
 
@@ -53,8 +53,12 @@ Return the aproximation of the probability of parsing any word v, which include 
     # dictionary of multinomial coeficients
     k_factorial = factorial(k)
     coef = {tuple(1 for _ in range(k)) + (False,) : k_factorial}
-    for par in partitions_with_zeros(k-1, k):
-        coef[par] = multinomial( *par[:-1])
+ 
+ # prepočas
+ #   for par in partitions_with_zeros(k-1, k):
+  #      coef[par] = multinomial( *par[:-1])
+ 
+ 
     #for j in range(k+1):
     #    key = tuple(0 if l == j else 1 for l in range(k)) + (True,)
     #    coef[key] = factorial(k)
@@ -77,15 +81,17 @@ Return the aproximation of the probability of parsing any word v, which include 
                     continue
                 tmp_p = par[:j] + (par[j] -1,) + par[j+1:-1] + (par[-1] or par[j] == 1,)
                # update current coefitient
+                if coef.get(tmp_p) is None:
+                    coef[tmp_p] = multinomial(*par[:-1])
                 d_coef += coef[tmp_p]
             coef[par] = d_coef
-            
+        
             # if partition doesn'0t include 0, we can add it to DeltaP
             if not par[-1]:
                 # product of q_i^(l_i)
                 prod = 1
                 for index, l in enumerate(par[:-1]):
-                    prod *= qs[index]**l
+                    prod *= exp(qs[index], l)
                 # inner sum                 
                 sum_over_partitions += coef[par]*prod 
 
