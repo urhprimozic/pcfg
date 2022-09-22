@@ -1,5 +1,16 @@
 from functools import lru_cache
 from itertools import chain, combinations
+from scipy.special import binom
+
+
+def multinomial(*args):
+    '''
+    Return multinomial copeficient of args
+    From https://stackoverflow.com/a/46374719/5170644
+    '''
+    if len(args) == 1:
+        return 1
+    return binom(sum(args), args[-1]) * multinomial(*args[:-1])
 
 def partitions(i,k):
     @lru_cache(maxsize=None)

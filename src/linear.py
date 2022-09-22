@@ -1,10 +1,8 @@
+from audioop import mul
 from math import factorial
-from utils import partitions_with_zeros, powerset, even
+from utils import partitions_with_zeros, powerset, even, multinomial
 from tqdm import tqdm
 from nltk import PCFG, nonterminals
-
-
-
 
 
 def probability(m : int, p : float,*qs : float) -> float:
@@ -55,20 +53,22 @@ Return the aproximation of the probability of parsing any word v, which include 
     # dictionary of multinomial coeficients
     k_factorial = factorial(k)
     coef = {tuple(1 for _ in range(k)) + (False,) : k_factorial}
-    for j in range(k+1):
-        key = tuple(0 if l == j else 1 for l in range(k)) + (True,)
-        coef[key] = factorial(k)
+    for par in partitions_with_zeros(k-1, k):
+        coef[par] = multinomial( *par[:-1])
+    #for j in range(k+1):
+    #    key = tuple(0 if l == j else 1 for l in range(k)) + (True,)
+    #    coef[key] = factorial(k)
     
     # iterations
     pi = p**(k-1)
-    #for i in range(k, m+k):
-    for i in tqdm(range(k, m+k), total=m):
+    for i in range(k, m+k):
+    #for i in tqdm(range(k, m+k), total=m):
         # iterate over partitions
         ps = partitions_with_zeros(i, k)
         sum_over_partitions = 0
         for par in ps:
 
-            # new coeficients 
+            # new coeficient for this partition
             d_coef  = 0
             for j in range(0,k):
                 # (l1, ..., lj-1, ..., lk)
@@ -76,16 +76,18 @@ Return the aproximation of the probability of parsing any word v, which include 
                     # multinomial coef with negative number is 0
                     continue
                 tmp_p = par[:j] + (par[j] -1,) + par[j+1:-1] + (par[-1] or par[j] == 1,)
-                if (not par[-1]) and par[j] >= 1:
-                    d_coef += coef[tmp_p]
+               # update current coefitient
+                d_coef += coef[tmp_p]
             coef[par] = d_coef
             
-            # product of q_i^(l_i)
-            prod = 1
-            for index, l in enumerate(par[:-1]):
-                prod *= qs[index]**l
-            # inner sum 
-            sum_over_partitions += coef[par]*prod 
+            # if partition doesn'0t include 0, we can add it to DeltaP
+            if not par[-1]:
+                # product of q_i^(l_i)
+                prod = 1
+                for index, l in enumerate(par[:-1]):
+                    prod *= qs[index]**l
+                # inner sum                 
+                sum_over_partitions += coef[par]*prod 
 
         # new pi = p^i
         pi *= p
@@ -125,13 +127,13 @@ def probability_exact(p : float, *qs : float) -> float:
     E -> E + cV [p] | c [1-p]
 
     V -> x_1 [1]
-    >>> probability(10,0.5,1)
-    0.49951171875
+    >>> probability(0.5,1)
+    0.5
 
     '''
     ans = 0
     for i in powerset(qs):
-        ans += even(len(qs) - len(i))*(1-p) / (1-p*sum(i) )
+       ans += even(len(qs) - len(i))*(1-p) / (1-p*sum(i) )
     return ans
 
 
