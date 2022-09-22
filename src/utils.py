@@ -1,5 +1,5 @@
 from functools import lru_cache
-from tkinter.messagebox import RETRY
+from itertools import chain, combinations
 
 def partitions(i,k):
     @lru_cache(maxsize=None)
@@ -22,6 +22,7 @@ def partitions(i,k):
 
 def partitions_with_zeros(i,k):
     '''
+    Returns all the partitions of i in k integers (might be zero).
     Format:
     p[:-1] - partiotion
     p[-1] - True if it includes zero 
@@ -39,13 +40,20 @@ def partitions_with_zeros(i,k):
                 ans.append(new_partition)
         return ans 
     return f(i,k)
-#    clean = []
-#    zeros = []
-#    for p in f(i,k):
-#        if p[-1]:
-#            zeros.append(p[:-1])
-#        else:
-#            clean.append(p[:-1])
- #   return clean, zeros
 
 
+
+def powerset(s):
+    '''
+    Returns powerset
+    '''
+    s = list(s)
+    return chain.from_iterable(combinations(s, i) for i in range(len(s)+1))
+
+def even(i :int):
+    '''
+    Returns 1 if even, -1 otherwise
+    '''
+    if i % 2 == 0:
+        return 1
+    return -1

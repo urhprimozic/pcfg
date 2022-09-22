@@ -1,14 +1,53 @@
 from math import factorial
-from utils import partitions, partitions_with_zeros
+from utils import partitions_with_zeros, powerset, even
 from tqdm import tqdm
-def probability(m, p,*qs):
+from nltk import PCFG, nonterminals
+
+
+
+
+
+def probability(m : int, p : float,*qs : float) -> float:
     '''
-    Return the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
+    Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
+
+    with the grammar
+    
+    E -> E + cV [p] | c [1-p]
+Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
+
+    with the grammar
+    
+    E -> E + cV [p] | c [1-p]
+
+    V -> x_1 [q_1] | ... | x_n [q_n]
+
     Parameters
     --------------
     - m - Number of iterations
     - p = P(S -> V)
     - qs[i] = P(V -> x_i)
+
+    Returns
+    -----------
+    Probability of P([w]), where w = c + \sum cx_i
+
+    Example
+    ---------
+    Probability of parsing an expression c+cx_i in a grammar 
+   
+    E -> E + cV [p] | c [1-p]
+
+    V -> x_1 [1]
+    >>> probability(10,0.5,1)
+    0.49951171875
+
+    E -> E + cV [p] | c [1-p]
+
+    V -> x_1 [1]
+    >>> probability(10,0.5,1)
+    0.49951171875
+
     '''
     # initalizing 
     k = len(qs)
@@ -57,4 +96,47 @@ def probability(m, p,*qs):
         P += dP
     return P
 
+def probability_exact(p : float, *qs : float) -> float:
+    '''
+    Use the exact formula for probability. Exponential time complexity.
     
+    Returns the EXACT probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
+
+    with the grammar
+    
+    E -> E + cV [p] | c [1-p]
+
+    V -> x_1 [q_1] | ... | x_n [q_n]
+
+    Parameters
+    --------------
+    - m - Number of iterations
+    - p = P(S -> V)
+    - qs[i] = P(V -> x_i)
+
+    Returns
+    -----------
+    Probability of P([w]), where w = c + \sum cx_i
+
+    Example
+    ---------
+    Probability of parsing an expression c+cx_i in a grammar 
+   
+    E -> E + cV [p] | c [1-p]
+
+    V -> x_1 [1]
+    >>> probability(10,0.5,1)
+    0.49951171875
+
+    '''
+    ans = 0
+    for i in powerset(qs):
+        ans += even(len(qs) - len(i))*(1-p) / (1-p*sum(i) )
+    return ans
+
+
+grammar = PCFG.fromstring("""
+ S -> S '+' 'c' V [0.5] | 'c' [0.5]
+ V -> 'x' [0.7] | 'y' [0.3]
+ """)    
+ 
