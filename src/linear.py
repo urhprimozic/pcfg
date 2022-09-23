@@ -200,8 +200,6 @@ def multinomial_aprox(coef, i, *qs, eps=0.01):
                
                # update current coefitient
                 if coef.get(tmp_p) is None:
-                    print('coef:\n', coef)
-                    print(type(coef))
                     d_coef = multinomial(*partition, coef=coef)
                     break
                     #coef[tmp_p] = multinomial(*tmp_p, coef=coef)
