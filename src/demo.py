@@ -29,9 +29,9 @@ def steps_aproximation(m,k):
     Number of steps for m iterations
     '''
     ans = 0
-    for i in range(2,m+1):
+    for i in range(k,m+k):
         ans+= steps_iteration(i,k)
-    return ans
+    return int(ans)
 
 def steps_formula(k):
     '''
