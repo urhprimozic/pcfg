@@ -232,7 +232,7 @@ def multinomial_aprox(coef, i, *qs, eps=0.01):
     return ans
 
 
-def probability(m: int, p: float, *qs: float) -> float:
+def probability(m: int, p: float, *qs: float, eps=0.01) -> float:
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -287,7 +287,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     for i in range(k, m+k):
         # for i in tqdm(range(k, m+k), total=m):
         # iterate over partitions
-        sum_over_partitions = multinomial_aprox(coef, i, *qs, eps=0.01)
+        sum_over_partitions = multinomial_aprox(coef, i, *qs, eps=eps)
 
         # new pi = p^i
         pi *= p
