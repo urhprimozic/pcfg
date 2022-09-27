@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from queue import Queue
 
 
-def probability_old(m: int, p: float, *qs: float) -> float:
+def probability_deprecated(m: int, p: float, *qs: float) -> float:
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -49,6 +49,9 @@ Return the aproximation of the probability of parsing any word v, which include 
     0.49951171875
 
     '''
+    print('WARNING\nDeprecated version..')
+
+
     # initalizing
     k = len(qs)
     P = 0
