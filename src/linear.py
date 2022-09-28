@@ -5,7 +5,7 @@ from tqdm import tqdm
 from nltk import PCFG, nonterminals
 import matplotlib.pyplot as plt
 from queue import Queue
-
+from scipy.special import binom
 
 def probability_deprecated(m: int, p: float, *qs: float) -> float:
     '''
@@ -166,7 +166,7 @@ def integer_maximum_aprox(i, top):
     return tuple(ans)
 
 
-def multinomial_aprox(coef, i, *qs, eps=0.01):
+def multinomial_aprox(coef, i, *qs, gamma):
     '''
     Sums the elements > epsilon of an inner sum. BFS
 
@@ -175,7 +175,8 @@ def multinomial_aprox(coef, i, *qs, eps=0.01):
     ans = 0
 
     # top is at E[X] = i(q1, ..., qk)
-    top = (int(round(i*q, 0)) for q in qs)
+    sum_q = sum(qs)
+    top = (int(round(i*q/sum_q, 0)) for q in qs)
     # in queue are elements of the sum, yet to be visited
     # parametrised by partitions (l1, ..., lk), where l1 +...+ lk = i
     q = Queue()
@@ -183,7 +184,13 @@ def multinomial_aprox(coef, i, *qs, eps=0.01):
 
     visited = set()
 
+    # number of sum elements that will get calculated
+    n_sum_elements = int(gamma * binom(i-1, len(qs) -1))
+
     while not q.empty():
+        if n_sum_elements == 0:
+            break
+        n_sum_elements -= 1
 
         # partition
         partition = q.get()
@@ -205,7 +212,6 @@ def multinomial_aprox(coef, i, *qs, eps=0.01):
                 if coef.get(tmp_p) is None:
                     d_coef = multinomial(*partition, coef=coef)
                     break
-                    #coef[tmp_p] = multinomial(*tmp_p, coef=coef)
                 d_coef += coef[tmp_p]
            
             coef[partition] = d_coef
@@ -217,9 +223,9 @@ def multinomial_aprox(coef, i, *qs, eps=0.01):
         curr = coef[partition]*prod
         ans += curr
 
-        # check if too small
-        if curr < eps:
-            continue
+        # check if too small - DEPRECATED
+        #if curr < eps:
+        #    continue
 
         # add new partitionss to the queue
         for j in range(len(partition)):
@@ -235,7 +241,7 @@ def multinomial_aprox(coef, i, *qs, eps=0.01):
     return ans
 
 
-def probability(m: int, p: float, *qs: float, eps=0.01) -> float:
+def probability(m: int, p: float, *qs: float, epsilon=0.8) -> float:
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -255,6 +261,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     - m - Number of iterations
     - p = P(S -> V)
     - qs[i] = P(V -> x_i)
+    - eps - maksimal error of aproximation allowed .
 
     Returns
     -----------
@@ -280,8 +287,23 @@ Return the aproximation of the probability of parsing any word v, which include 
     # initalizing
     k = len(qs)
     P = 0
+
     # dictionary of multinomial coeficients
     coef = {}
+
+    #precision - gamma
+    sum_q = sum(qs)
+    top = (int(round(k*q/sum_q, 0)) for q in qs)
+    top = integer_maximum_aprox(k, top)
+    max_element = multinomial(top, coef=coef) # bmultinomial()
+    for index, q in enumerate(qs):
+        max_element *= exp(q, top[index])
+
+    # TODO: tto je zelooo groba ocena in je posledično gamma zelooooooo velik al mali al kaj
+    max_error_coef = (1-p)*exp(k, p/(1-p))
+    gamma = epsilon/(max_error_coef * max_element)
+    gamma = 1 - gamma
+
 
     # p^i
     pi = p**(k-1)
@@ -290,7 +312,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     for i in range(k, m+k):
         # for i in tqdm(range(k, m+k), total=m):
         # iterate over partitions
-        sum_over_partitions = multinomial_aprox(coef, i, *qs, eps=eps)
+        sum_over_partitions = multinomial_aprox(coef, i, *qs, gamma=gamma)
 
         # new pi = p^i
         pi *= p
@@ -308,4 +330,4 @@ grammar = PCFG.fromstring("""
  """)
 '''
 
-probability(3, 0.5, 0.2,0.2,0.2)
+# print(probability(3, 0.5, 0.2,0.2,0.2))
