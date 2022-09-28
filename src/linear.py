@@ -151,7 +151,7 @@ def probability_exact(p: float, *qs: float) -> float:
 
 def integer_maximum_aprox(i, top):
     '''
-    A close integer aproximation for (q1, ..., qk), which sums to 1
+    A close integer aproximation for (q1, ..., qk), which sums to i
 
     - top - (q1, ..., qk)
     - i = sum(q_j)
