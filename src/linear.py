@@ -166,7 +166,7 @@ def integer_maximum_aprox(i, top):
     return tuple(ans)
 
 
-def multinomial_aprox(coef, i, *qs, gamma):
+def multinomial_aprox(coef, i, *qs, gamma, epsilon, p):
     '''
     Sums the elements > epsilon of an inner sum. BFS
 
@@ -185,47 +185,45 @@ def multinomial_aprox(coef, i, *qs, gamma):
     visited = set()
 
     # number of sum elements that will get calculated
-    n_sum_elements = int(gamma * binom(i-1, len(qs) -1))
+    n_possible_partitions = binom(i-1, len(qs) -1)
+    n_sum_elements = int(gamma * n_possible_partitions)
+    n_visited=0
 
     while not q.empty():
-        if n_sum_elements == 0:
-            break
-        n_sum_elements -= 1
-
-        # partition
+        # get new  partition
         partition = q.get()
         if partition in visited:
             continue
         visited.add(partition)
 
-        # get coeficient
+        # get new coeficient
         if coef.get(partition) is None:
-            d_coef = 0
-            
-            for j in range(len(partition)):
-                if partition[j] == 0:
-                    # multinomial coef with negative number is 0
-                    continue
-                tmp_p = partition[:j] + (partition[j] - 1,) + partition[j+1:]
-               
-               # update current coefitient
-                if coef.get(tmp_p) is None:
-                    d_coef = multinomial(*partition, coef=coef)
-                    break
-                d_coef += coef[tmp_p]
-           
-            coef[partition] = d_coef
+            coef[partition] = multinomial(*partition, coef=coef)
 
-         # sum element from the partition
+        # get the element of the sum, coresponding to the partition
         prod = 1
         for index, l in enumerate(partition):
             prod *= exp(qs[index], l)
+        # curr - current element of the sum
         curr = coef[partition]*prod
+        # add to the inner sum aproximation
         ans += curr
 
-        # check if too small - DEPRECATED
-        #if curr < eps:
-        #    continue
+        # update gamma (gamma = procent of elements CALCULATED)
+        # alternativa:  max_error_coef = (1-p)*exp(i, p/(1-p))
+        max_error_coef = (1-p)*exp(len(qs), p/(1-p))
+        
+        # first: calculate the number of elements LEFT OUT
+        gamma = epsilon/(max_error_coef * curr)
+        # second: change to the procent of elements CALCULATED
+        gamma = 1 - gamma
+        # update number of elements calculated (miight be bigeer)
+        n_sum_elements = int(gamma * n_possible_partitions)
+        
+        # check, if we calculated enough partitions
+        if n_visited >= n_sum_elements:
+            break
+        n_visited += 1
 
         # add new partitionss to the queue
         for j in range(len(partition)):
@@ -312,7 +310,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     for i in range(k, m+k):
         # for i in tqdm(range(k, m+k), total=m):
         # iterate over partitions
-        sum_over_partitions = multinomial_aprox(coef, i, *qs, gamma=gamma)
+        sum_over_partitions = multinomial_aprox(coef, i, *qs, gamma=gamma, epsilon=epsilon, p=p)
 
         # new pi = p^i
         pi *= p
