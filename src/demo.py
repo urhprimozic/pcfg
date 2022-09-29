@@ -3,9 +3,11 @@ from turtle import color
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import binom
+import scipy
 from math import log2
 from tqdm import tqdm
-
+from utils import multinomial, partitions
+import matplotlib.cm as cm
 from linear import probability, probability_exact
 
 N = 103
@@ -94,8 +96,53 @@ def plot_err_iter(m_min, m_max, divisor=2, p=0.5, filename='error_over_iteration
         plt.ylabel('Error')
         plt.xlabel('Iteration')
     
+def plot_sum_elements_dist(i, q1, q2):
+    dist = scipy.stats.multinomial(i, [q1, q2])
+
+    # plot
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+
+    # data  k = 2 
+    x = partitions(i, 2)
+    y = [dist.pmf(par) for par in x]
+
+    ax.bar(x, y)
+    
 
 
+#if __name__== 'main':
+#    error_vs_estimator(10, 0.5,'error_vs_estimator.pdf', *eq_qs(5))
 
-if __name__== 'main':
-    error_vs_estimator(10, 0.5,'error_vs_estimator.pdf', *eq_qs(5))
+
+i = 15
+q1 = 0.3
+q2 = 0.3
+q3 = 0.3
+
+dist = scipy.stats.multinomial(i, [q1, q2, q3])
+
+# plot
+fig = plt.figure()
+ax = fig.add_subplot(111,projection='3d')
+
+# data  k = 2 
+pars = partitions(i, 3)
+heights = [dist.pmf(par) for par in pars]
+
+x = [p[0] for p in pars] 
+y = [p[1] for p in pars] 
+z = [0 for _ in pars]
+dx = [1 for _ in pars]
+
+# coloringsdsfga asdfaewghrbqare3hbwsreghzarQWE5hbewntnetzuhjn
+min_height = min(heights)
+max_height = max(heights)
+# cmap = cm.get_cmap('jet')
+cmap = cm.get_cmap('rainbow')
+rgbs = [cmap( (h - min_height)/max_height ) for h in heights ]
+
+
+ax.bar3d(x, y, z, dx,dx,heights, color=rgbs)
+plt.savefig(f'sum_elemets_i{i}_q1{q1}_q2{q2}_q3{q3}.pdf')
+plt.show()
