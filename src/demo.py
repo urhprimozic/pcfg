@@ -111,11 +111,8 @@ def plot_sum_elements_dist(i, q1, q2):
     
 
 
-#if __name__== 'main':
-#    error_vs_estimator(10, 0.5,'error_vs_estimator.pdf', *eq_qs(5))
 
-
-i = 15
+i = 15#25
 q1 = 0.3
 q2 = 0.3
 q3 = 0.3
