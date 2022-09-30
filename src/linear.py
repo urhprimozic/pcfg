@@ -1,6 +1,6 @@
 from audioop import mul
 from math import factorial
-from utils import partitions_with_zeros, powerset, even, multinomial, exp, sign
+from utils import partitions, powerset, even, multinomial, exp, sign
 from tqdm import tqdm
 from nltk import PCFG, nonterminals
 import matplotlib.pyplot as plt
@@ -89,7 +89,7 @@ def f_fast(M, j, p, k, _):
     return (1-p) * p * (a - b)
 
 
-def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, k, pi):
+def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi):
     '''
     Sums the first (1-gamma)% elements  of an inner sum using BFS
 
@@ -101,7 +101,7 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, k, pi):
     sum_of_elemets, new_gamma, Ai (aprox of the error made)
     '''
     ans = 0
-
+    k = len(qs)
     # top is at E[X] = i(q1, ..., qk)
     sum_q = sum(qs)
     top = (int(round(i*q/sum_q, 0)) for q in qs)
@@ -123,7 +123,7 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, k, pi):
 
     # get gamma, EPSILON SHOULD ALREADY BE REDUCED BY A
     denominator = maximal_element * \
-        (1-p) * (binom(i-1, k-1) * pi + f(M, i, p, k, pi))
+        ((1-p) * binom(i-1, k-1) * pi + f(M, i, p, k, pi))
     if i == k:
         gamma = epsilon/denominator
     else:
@@ -135,16 +135,18 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, k, pi):
     n_sum_elements = int((1-gamma) * n_possible_partitions)
 
     while not q.empty():
-        # check if we can make any more moves
-        if n_sum_elements <= 0:
-            break
-        n_sum_elements -= 1
-
         # get new  partition
         partition = q.get()
         if partition in visited:
             continue
+
+        # this was unvisited, change to visited
         visited.add(partition)
+
+        # check if we can make any more moves
+        if n_sum_elements <= 0:
+            break
+        n_sum_elements -= 1
 
         # get new coeficient
         if coef.get(partition) is None:
@@ -165,23 +167,26 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, k, pi):
 
         # add new partitionss to the queue
         for j in range(len(partition)):
-            for k in range(len(partition)):
-                if k == j:
+            for jj in range(len(partition)):
+                if jj == j:
                     continue
                 new_partition = list(partition)
-                new_partition[k] += 1
+                new_partition[jj] += 1
                 new_partition[j] -= 1
-                if new_partition[k] <= 0 or new_partition[j] <= 0:
+                if  new_partition[j] <= 0:
                     continue
                 q.put(tuple(new_partition))
 
+
     # get better aprox for past error
     Ai = (1-p)*pi * gamma * binom(i-1, k-1) * minimal_element
+    # Ai = (1-p)*pi * gamma * binom(i-1, k-1) * maximal_element
+    
 
     return ans, gamma, Ai
 
 
-def probability(m: int, p: float, *qs: float, epsilon=0.8) -> float:
+def probability(m: int, p: float, *qs: float, epsilon=0.01) -> float:
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -229,22 +234,22 @@ Return the aproximation of the probability of parsing any word v, which include 
     gamma = 1
 
     # p^i
-    pi = p**(k-1)
+    pi =  exp(p, k-1)#p**(k-1)
 
     # iterations
-    for i in range(k, m+k):
+    for i in range(k, m+k+1):
         # for i in tqdm(range(k, m+k), total=m):
         # iterate over partitions
 
         # decrease the margin for error
         epsilon -= A
 
-        # get inner sum aproximation, the new gamm, anbd the new A_i
-        sum_over_partitions, gamma, Ai = multinomial_aprox(
-            coef, i, *qs, gamma=gamma, epsilon=epsilon, p=p, M=m, k=k, pi=pi)
-
         # new pi = p^i
         pi *= p
+
+        # get inner sum aproximation, the new gamm, anbd the new A_i
+        sum_over_partitions, gamma, Ai = multinomial_aprox(
+            coef, i, *qs, gamma=gamma, epsilon=epsilon, p=p, M=m, pi=pi)
 
         # update A
         A += Ai
