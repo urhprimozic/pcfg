@@ -1,3 +1,4 @@
+from audioop import mul
 from math import factorial
 from utils import partitions_with_zeros, powerset, even, multinomial, exp, sign
 from tqdm import tqdm
@@ -5,7 +6,7 @@ from nltk import PCFG, nonterminals
 import matplotlib.pyplot as plt
 from queue import Queue
 from scipy.special import binom
-from mpmath import hyp2f1
+from mpmath import hyp2f1  # hypergeometric function
 
 
 def probability_exact(p: float, *qs: float) -> float:
@@ -64,30 +65,81 @@ def integer_maximum_aprox(i, top):
     return tuple(ans)
 
 
-def multinomial_aprox(coef, i, *qs, gamma, epsilon, p):
+def f(M, j, p, k, pi):
     '''
-    Sums the elements > epsilon of an inner sum. BFS
+    Assertion for futture error 
+    Returns f(M,j) from the article. 
+    '''
+    ans = 0
+    if pi is None:
+        pi = exp(p, j)
+    for i in range(j+1, M+1):
+        pi *= p
+        ans += (1-p)*pi*binom(i-1, k-1)
+    return ans
+
+
+def f_fast(M, j, p, k, _):
+    '''
+    Assertion for futture error 
+    Returns f(M,j) from the article. ,, and formual fiwh hypergeomtetric function
+    '''
+    a = exp(p, j) * binom(j, k-1) * float(hyp2f1(1, j+1, j-k+2, p))
+    b = exp(p, M) * binom(M, k-1) * float(hyp2f1(1, M+1, -k+M+2, p))
+    return (1-p) * p * (a - b)
+
+
+def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, k, pi):
+    '''
+    Sums the first (1-gamma)% elements  of an inner sum using BFS
 
     - coef : dictionary of mult. coefifcients 
+    - i - current iteration
+
+    Returns
+    ----------
+    sum_of_elemets, new_gamma, Ai (aprox of the error made)
     '''
     ans = 0
 
     # top is at E[X] = i(q1, ..., qk)
     sum_q = sum(qs)
     top = (int(round(i*q/sum_q, 0)) for q in qs)
+    top = integer_maximum_aprox(i, top)
     # in queue are elements of the sum, yet to be visited
     # parametrised by partitions (l1, ..., lk), where l1 +...+ lk = i
     q = Queue()
-    q.put(integer_maximum_aprox(i, top))
+    q.put(top)
 
     visited = set()
 
+    # get maximal element
+    prod = 1
+    for index, l in enumerate(top):
+        prod *= exp(qs[index], l)
+    maximal_element = prod*multinomial(*top, coef=coef)
+    # update minimal element calculated
+    minimal_element = maximal_element
+
+    # get gamma, EPSILON SHOULD ALREADY BE REDUCED BY A
+    denominator = maximal_element * \
+        (1-p) * (binom(i-1, k-1) * pi + f(M, i, p, k, pi))
+    if i == k:
+        gamma = epsilon/denominator
+    else:
+        gamma = min(epsilon/denominator, gamma)
+    
+
     # number of sum elements that will get calculated
-    n_possible_partitions = binom(i-1, len(qs) -1)
-    n_sum_elements = int(gamma * n_possible_partitions)
-    n_visited=0
+    n_possible_partitions = binom(i-1, len(qs) - 1)
+    n_sum_elements = int((1-gamma) * n_possible_partitions)
 
     while not q.empty():
+        # check if we can make any more moves
+        if n_sum_elements <= 0:
+            break
+        n_sum_elements -= 1
+
         # get new  partition
         partition = q.get()
         if partition in visited:
@@ -107,21 +159,9 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p):
         # add to the inner sum aproximation
         ans += curr
 
-        # update gamma (gamma = procent of elements CALCULATED)
-        # alternativa:  max_error_coef = (1-p)*exp(i, p/(1-p))
-        max_error_coef = (1-p)*exp(len(qs), p/(1-p))
-        
-        # first: calculate the number of elements LEFT OUT
-        gamma = epsilon/(max_error_coef * curr)
-        # second: change to the procent of elements CALCULATED
-        gamma = 1 - gamma
-        # update number of elements calculated (miight be bigeer)
-        n_sum_elements = int(gamma * n_possible_partitions)
-        
-        # check, if we calculated enough partitions
-        if n_visited >= n_sum_elements:
-            break
-        n_visited += 1
+        # update minimal element
+        minimal_element = min(minimal_element, curr)
+        # TODO also update maximal and change gamma accordnilgnli
 
         # add new partitionss to the queue
         for j in range(len(partition)):
@@ -134,7 +174,11 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p):
                 if new_partition[k] <= 0 or new_partition[j] <= 0:
                     continue
                 q.put(tuple(new_partition))
-    return ans
+
+    # get better aprox for past error
+    Ai = (1-p)*pi * gamma * binom(i-1, k-1) * minimal_element
+
+    return ans, gamma, Ai
 
 
 def probability(m: int, p: float, *qs: float, epsilon=0.8) -> float:
@@ -157,7 +201,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     - m - Number of iterations
     - p = P(S -> V)
     - qs[i] = P(V -> x_i)
-    - eps - maksimal error of aproximation allowed .
+    - epsilon - margin for error, caused by 2nd degree aproximation
 
     Returns
     -----------
@@ -172,34 +216,17 @@ Return the aproximation of the probability of parsing any word v, which include 
     V -> x_1 [1]
     >>> probability(10,0.5,1)
     0.49951171875
-
-    E -> E + cV [p] | c [1-p]
-
-    V -> x_1 [1]
-    >>> probability(10,0.5,1)
-    0.49951171875
-
     '''
     # initalizing
     k = len(qs)
     P = 0
-
+    # aproximation of an error, caused by skiping elements up to this point
+    A = 0
     # dictionary of multinomial coeficients
     coef = {}
 
-    #precision - gamma
-    sum_q = sum(qs)
-    top = (int(round(k*q/sum_q, 0)) for q in qs)
-    top = integer_maximum_aprox(k, top)
-    max_element = multinomial(top, coef=coef) # bmultinomial()
-    for index, q in enumerate(qs):
-        max_element *= exp(q, top[index])
-
-    # TODO: tto je zelooo groba ocena in je posledično gamma zelooooooo velik al mali al kaj
-    max_error_coef = (1-p)*exp(k, p/(1-p))
-    gamma = epsilon/(max_error_coef * max_element)
-    gamma = 1 - gamma
-
+    # set gamma to whatever
+    gamma = 1
 
     # p^i
     pi = p**(k-1)
@@ -208,22 +235,22 @@ Return the aproximation of the probability of parsing any word v, which include 
     for i in range(k, m+k):
         # for i in tqdm(range(k, m+k), total=m):
         # iterate over partitions
-        sum_over_partitions = multinomial_aprox(coef, i, *qs, gamma=gamma, epsilon=epsilon, p=p)
+
+        # decrease the margin for error
+        epsilon -= A
+
+        # get inner sum aproximation, the new gamm, anbd the new A_i
+        sum_over_partitions, gamma, Ai = multinomial_aprox(
+            coef, i, *qs, gamma=gamma, epsilon=epsilon, p=p, M=m, k=k, pi=pi)
 
         # new pi = p^i
         pi *= p
+
+        # update A
+        A += Ai
 
         # estimation difference
         dP = (1-p)*pi * sum_over_partitions
         # new estimate
         P += dP
     return P
-
-'''
-grammar = PCFG.fromstring("""
- S -> S '+' 'c' V [0.5] | 'c' [0.5]
- V -> 'x' [0.7] | 'y' [0.3]
- """)
-'''
-
-# print(probability(3, 0.5, 0.2,0.2,0.2))
