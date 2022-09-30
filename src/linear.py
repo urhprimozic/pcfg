@@ -1,5 +1,7 @@
 from audioop import mul
 from math import factorial
+
+from numpy import partition
 from utils import partitions, powerset, even, multinomial, exp, sign
 from tqdm import tqdm
 from nltk import PCFG, nonterminals
@@ -73,10 +75,17 @@ def f(M, j, p, k, pi):
     ans = 0
     if pi is None:
         pi = exp(p, j)
-    for i in range(j+1, M+1):
+    pi /=p
+    for i in range(j, M+k+1):
         pi *= p
         ans += (1-p)*pi*binom(i-1, k-1)
     return ans
+
+def kappa(partition, *qs,  coef):
+    prod = 1
+    for index, l in enumerate(partition):
+        prod *= exp(qs[index], l)
+    return prod*multinomial(*qs,coef=coef)
 
 
 def f_fast(M, j, p, k, _):
@@ -84,6 +93,8 @@ def f_fast(M, j, p, k, _):
     Assertion for futture error 
     Returns f(M,j) from the article. ,, and formual fiwh hypergeomtetric function
     '''
+    print('Napačna formula!')
+    raise(NotImplementedError)
     a = exp(p, j) * binom(j, k-1) * float(hyp2f1(1, j+1, j-k+2, p))
     b = exp(p, M) * binom(M, k-1) * float(hyp2f1(1, M+1, -k+M+2, p))
     return (1-p) * p * (a - b)
@@ -114,16 +125,13 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi):
     visited = set()
 
     # get maximal element
-    prod = 1
-    for index, l in enumerate(top):
-        prod *= exp(qs[index], l)
-    maximal_element = prod*multinomial(*top, coef=coef)
+    maximal_element = kappa(top, *qs, coef=coef)
     # update minimal element calculated
     minimal_element = maximal_element
-
     # get gamma, EPSILON SHOULD ALREADY BE REDUCED BY A
-    denominator = maximal_element * \
-        ((1-p) * binom(i-1, k-1) * pi + f(M, i, p, k, pi))
+    denominator = f(M, i, p, k, pi) * maximal_element
+    #denominator = maximal_element * \
+    #    ((1-p) * binom(i-1, k-1) * pi + f(M, i, p, k, pi))
     if i == k:
         gamma = epsilon/denominator
     else:
@@ -132,7 +140,8 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi):
 
     # number of sum elements that will get calculated
     n_possible_partitions = binom(i-1, len(qs) - 1)
-    n_sum_elements = int((1-gamma) * n_possible_partitions)
+    # increased by 1, so at least 1 will get calculated
+    n_sum_elements = int((1-gamma) * n_possible_partitions) + 1
 
     while not q.empty():
         # get new  partition
@@ -237,7 +246,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     pi =  exp(p, k-1)#p**(k-1)
 
     # iterations
-    for i in range(k, m+k+1):
+    for i in range(k, m+k):
         # for i in tqdm(range(k, m+k), total=m):
         # iterate over partitions
 
