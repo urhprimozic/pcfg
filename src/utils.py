@@ -23,6 +23,8 @@ def multinomial(*args, coef):
     '''
     Return multinomial copeficient of args
     '''
+    # multinomial coefs are the same if we permute them
+    sorted_args = tuple(sorted(a))
 
     def f(*args):
         if coef.get(tuple(args)) is not None:

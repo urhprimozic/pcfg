@@ -75,17 +75,18 @@ def f(M, j, p, k, pi):
     ans = 0
     if pi is None:
         pi = exp(p, j)
-    pi /=p
+    pi /= p
     for i in range(j, M+k+1):
         pi *= p
         ans += (1-p)*pi*binom(i-1, k-1)
     return ans
 
+
 def kappa(partition, *qs,  coef):
     prod = 1
     for index, l in enumerate(partition):
         prod *= exp(qs[index], l)
-    return prod*multinomial(*qs,coef=coef)
+    return prod*multinomial(*qs, coef=coef)
 
 
 def f_fast(M, j, p, k, _):
@@ -94,13 +95,13 @@ def f_fast(M, j, p, k, _):
     Returns f(M,j) from the article. ,, and formual fiwh hypergeomtetric function
     '''
     print('Napačna formula!')
-    raise(NotImplementedError)
+    raise (NotImplementedError)
     a = exp(p, j) * binom(j, k-1) * float(hyp2f1(1, j+1, j-k+2, p))
     b = exp(p, M) * binom(M, k-1) * float(hyp2f1(1, M+1, -k+M+2, p))
     return (1-p) * p * (a - b)
 
 
-def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi):
+def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi, exponent=0):
     '''
     Sums the first (1-gamma)% elements  of an inner sum using BFS
 
@@ -129,14 +130,13 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi):
     # update minimal element calculated
     minimal_element = maximal_element
     # get gamma, EPSILON SHOULD ALREADY BE REDUCED BY A
-    denominator = f(M, i, p, k, pi) * maximal_element
-    #denominator = maximal_element * \
+    denominator = f(M, i, p, k, pi) * maximal_element * (i**exponent)
+    # denominator = maximal_element * \
     #    ((1-p) * binom(i-1, k-1) * pi + f(M, i, p, k, pi))
     if i == k:
         gamma = epsilon/denominator
     else:
         gamma = min(epsilon/denominator, gamma)
-    
 
     # number of sum elements that will get calculated
     n_possible_partitions = binom(i-1, len(qs) - 1)
@@ -182,20 +182,18 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi):
                 new_partition = list(partition)
                 new_partition[jj] += 1
                 new_partition[j] -= 1
-                if  new_partition[j] <= 0:
+                if new_partition[j] <= 0:
                     continue
                 q.put(tuple(new_partition))
-
 
     # get better aprox for past error
     Ai = (1-p)*pi * gamma * binom(i-1, k-1) * minimal_element
     # Ai = (1-p)*pi * gamma * binom(i-1, k-1) * maximal_element
-    
 
     return ans, gamma, Ai
 
 
-def probability(m: int, p: float, *qs: float, epsilon=0.01) -> float:
+def probability(m: int, p: float, *qs: float, epsilon=0.01, exponent=0) -> float:
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -243,7 +241,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     gamma = 1
 
     # p^i
-    pi =  exp(p, k-1)#p**(k-1)
+    pi = exp(p, k-1)  # p**(k-1)
 
     # iterations
     for i in range(k, m+k):
@@ -258,7 +256,7 @@ Return the aproximation of the probability of parsing any word v, which include 
 
         # get inner sum aproximation, the new gamm, anbd the new A_i
         sum_over_partitions, gamma, Ai = multinomial_aprox(
-            coef, i, *qs, gamma=gamma, epsilon=epsilon, p=p, M=m, pi=pi)
+            coef, i, *qs, gamma=gamma, epsilon=epsilon, p=p, M=m, pi=pi, exponent=exponent)
 
         # update A
         A += Ai
