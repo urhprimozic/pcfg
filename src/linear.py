@@ -67,7 +67,7 @@ def integer_maximum_aprox(i, top):
     return tuple(ans)
 
 
-def f(M, j, p, k, pi):
+def f(M, j, p, k, pi, exponent):
     '''
     Assertion for futture error 
     Returns f(M,j) from the article. 
@@ -78,7 +78,7 @@ def f(M, j, p, k, pi):
     pi /= p
     for i in range(j, M+k+1):
         pi *= p
-        ans += (1-p)*pi*binom(i-1, k-1)
+        ans += (1-p)*pi*binom(i-1, k-1)/(i**exponent)
     return ans
 
 
@@ -130,13 +130,13 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi, exponent=0):
     # update minimal element calculated
     minimal_element = maximal_element
     # get gamma, EPSILON SHOULD ALREADY BE REDUCED BY A
-    denominator = f(M, i, p, k, pi) * maximal_element * (i**exponent)
+    denominator = f(M, i, p, k, pi, exponent) * maximal_element * (i**exponent)
     # denominator = maximal_element * \
     #    ((1-p) * binom(i-1, k-1) * pi + f(M, i, p, k, pi))
     if i == k:
         gamma = epsilon/denominator
     else:
-        gamma = min(epsilon/denominator, gamma)
+        gamma = min(epsilon/denominator, gamma/(i**exponent))
 
     # number of sum elements that will get calculated
     n_possible_partitions = binom(i-1, len(qs) - 1)
@@ -214,6 +214,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     - p = P(S -> V)
     - qs[i] = P(V -> x_i)
     - epsilon - margin for error, caused by 2nd degree aproximation
+    - exponent - C (each iteration, we divide the number of computed elements by i^C)
 
     Returns
     -----------
@@ -229,6 +230,9 @@ Return the aproximation of the probability of parsing any word v, which include 
     >>> probability(10,0.5,1)
     0.49951171875
     '''
+    if not exponent == 0:
+        print('Not implemented exponent <> 0')
+        raise(NotImplementedError) 
     # initalizing
     k = len(qs)
     P = 0
