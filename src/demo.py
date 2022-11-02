@@ -51,17 +51,6 @@ def error(m,  p=0.5, *qs):
         Q = sum(qs)
     return (1-p)*(p**m)*(Q**m)/(1-p*Q)
 
-
-def eq_qs(k, divisor=1):
-    '''
-    Returns an array of equal probabilities q_1= ...= q_k for rules 
-      V -> x_1 [q_1] | ... | x_k [q_k]
-
-    q_i = 1/(k*divisor)
-    '''
-    return [1/(k*divisor) for _ in range(k)]
-
-
 def real_error(m, p=0.5, *qs):
     '''
     Returns real error, made by aproximations with m iterations
@@ -132,7 +121,7 @@ y = [p[1] for p in pars]
 z = [0 for _ in pars]
 dx = [1 for _ in pars]
 
-# coloringsdsfga asdfaewghrbqare3hbwsreghzarQWE5hbewntnetzuhjn
+# colorings
 min_height = min(heights)
 max_height = max(heights)
 # cmap = cm.get_cmap('jet')
@@ -143,3 +132,4 @@ rgbs = [cmap( (h - min_height)/max_height ) for h in heights ]
 ax.bar3d(x, y, z, dx,dx,heights, color=rgbs)
 plt.savefig(f'sum_elemets_i{i}_q1{q1}_q2{q2}_q3{q3}.pdf')
 plt.show()
+

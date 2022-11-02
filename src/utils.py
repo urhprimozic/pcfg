@@ -24,7 +24,7 @@ def multinomial(*args, coef):
     Return multinomial copeficient of args
     '''
     # multinomial coefs are the same if we permute them
-    sorted_args = tuple(sorted(a))
+    sorted_args = tuple(sorted(args))
 
     def f(*args):
         if coef.get(tuple(args)) is not None:
@@ -106,3 +106,12 @@ def sign(n: int):
     if n < 0:
         return -1
     return 0
+
+def eq_qs(k, divisor=1):
+    '''
+    Returns an array of equal probabilities q_1= ...= q_k for rules 
+      V -> x_1 [q_1] | ... | x_k [q_k]
+
+    q_i = 1/(k*divisor)
+    '''
+    return [1/(k*divisor) for _ in range(k)]

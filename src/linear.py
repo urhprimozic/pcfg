@@ -67,7 +67,7 @@ def integer_maximum_aprox(i, top):
     return tuple(ans)
 
 
-def f(M, j, p, k, pi, exponent):
+def f_gamma(M, j, p, k, pi):
     '''
     Assertion for futture error 
     Returns f(M,j) from the article. 
@@ -78,7 +78,7 @@ def f(M, j, p, k, pi, exponent):
     pi /= p
     for i in range(j, M+k+1):
         pi *= p
-        ans += (1-p)*pi*binom(i-1, k-1)/(i**exponent)
+        ans += (1-p)*pi*binom(i-1, k-1)
     return ans
 
 
@@ -89,24 +89,114 @@ def kappa(partition, *qs,  coef):
     return prod*multinomial(*qs, coef=coef)
 
 
-def f_fast(M, j, p, k, _):
+def get_cs_constant_gamma(max_i, M, i, p, k, pi, epsilon, prev_cs):
     '''
-    Assertion for futture error 
-    Returns f(M,j) from the article. ,, and formual fiwh hypergeomtetric function
+    S(i) - the first (1-gamma)% partitions
     '''
-    print('Napačna formula!')
-    raise (NotImplementedError)
-    a = exp(p, j) * binom(j, k-1) * float(hyp2f1(1, j+1, j-k+2, p))
-    b = exp(p, M) * binom(M, k-1) * float(hyp2f1(1, M+1, -k+M+2, p))
-    return (1-p) * p * (a - b)
+    if i > k:
+        return prev_cs
+    denominator = f_gamma(M, i, p, k, pi) * max_i
+    gamma = epsilon/denominator
+    return 1-gamma
 
 
-def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi, exponent=0):
+def get_cs_gamma(max_i, M, i, p, k, pi, epsilon, prev_cs):
     '''
-    Sums the first (1-gamma)% elements  of an inner sum using BFS
+    S(i) - the first (1-gamma_i)% of partitions, closest to the maximum of kappa
+
+    gamma_1 >= gamma_2 >= gamma_3 ... 
+    '''
+    # extract the previous gamma
+    gamma = 1-prev_cs
+
+    denominator = f_gamma(M, i, p, k, pi) * max_i
+    if i == k:
+        gamma = epsilon/denominator
+    else:
+        gamma = min(epsilon/denominator, gamma)
+    return 1-gamma
+
+
+def diff_poly(M, j, p, k, pi):
+    '''
+    TODO
+    '''
+    ans = 0
+    if pi is None:
+        pi = exp(p, j)
+    pi /= p
+    for i in range(j, M+k+1):
+        pi *= p
+        ans += (1-p)*pi*binom(i-1, k-1)*(i**2-1)/(i**2)
+    return ans
+
+def f_poly(M, j, p, k, pi):
+    '''
+    TODO
+    '''
+    ans = 0
+    if pi is None:
+        pi = exp(p, j)
+    pi /= p
+    for i in range(j, M+k+1):
+        pi *= p
+        ans += (1-p)*pi*binom(i-1, k-1)/(i**2)
+    return ans
+
+def get_cs_decrease_poly(max_i, M, i, p, k, pi, epsilon, prev_cs):
+    if i > k:
+        # prev_cs = (1-gamma)/(i-1)²
+        return prev_cs*((i-1)**2)/(i**2)
+
+    denominator = f_poly(M, i, p, k, pi)
+    diff = diff_poly(M, i, p, k, pi)
+    gamma = (epsilon/max_i - diff)/denominator
+    return (1-gamma)/(i**2)
+
+def diff_exp(M, j, p, k, pi):
+    '''
+    TODO
+    '''
+    ans = 0
+    if pi is None:
+        pi = exp(p, j)
+    pi /= p
+    for i in range(j, M+k+1):
+        pi *= p
+        ans += (1-p)*pi*binom(i-1, k-1)*(exp(2,i)-1)/(exp(2,i))
+    return ans
+
+def f_exp(M, j, p, k, pi):
+    '''
+    TODO
+    '''
+    ans = 0
+    if pi is None:
+        pi = exp(p, j)
+    pi /= p
+    for i in range(j, M+k+1):
+        pi *= p
+        ans += (1-p)*pi*binom(i-1, k-1)/(exp(2,i))
+    return ans
+
+def get_cs_decrease_exp(max_i, M, i, p, k, pi, epsilon, prev_cs):
+    if i > k:
+        # prev_cs = (1-gamma)/(i-1)²
+        return prev_cs*((i-1)**2)/(i**2)
+
+    denominator = f_exp(M, i, p, k, pi)
+    diff = diff_exp(M, i, p, k, pi)
+    gamma = (epsilon/max_i - diff)/denominator
+    return (1-gamma)/exp(2,i)
+
+
+def multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, p: float, M: int, pi: float, prev_computed_size: float, get_computed_size):
+    '''
+    Sums the first get_computed_size% elements  of an inner sum using BFS
 
     - coef : dictionary of mult. coefifcients 
     - i - current iteration
+    - get_computed_size(max_i, M, i, p, k, pi, epsilon, prev_cs): - function that returns percent of elements computed in this iteration
 
     Returns
     ----------
@@ -129,19 +219,15 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi, exponent=0):
     maximal_element = kappa(top, *qs, coef=coef)
     # update minimal element calculated
     minimal_element = maximal_element
-    # get gamma, EPSILON SHOULD ALREADY BE REDUCED BY A
-    denominator = f(M, i, p, k, pi, exponent) * maximal_element * (i**exponent)
-    # denominator = maximal_element * \
-    #    ((1-p) * binom(i-1, k-1) * pi + f(M, i, p, k, pi))
-    if i == k:
-        gamma = epsilon/denominator
-    else:
-        gamma = min(epsilon/denominator, gamma/(i**exponent))
+    # EPSILON SHOULD ALREADY BE REDUCED BY A
+    computed_size = get_computed_size(
+        maximal_element, M, i, p, k, pi, epsilon, prev_computed_size)
+    error_size = 1 - computed_size
 
     # number of sum elements that will get calculated
     n_possible_partitions = binom(i-1, len(qs) - 1)
     # increased by 1, so at least 1 will get calculated
-    n_sum_elements = int((1-gamma) * n_possible_partitions) + 1
+    n_sum_elements = int(computed_size * n_possible_partitions) + 1
 
     while not q.empty():
         # get new  partition
@@ -187,13 +273,13 @@ def multinomial_aprox(coef, i, *qs, gamma, epsilon, p, M, pi, exponent=0):
                 q.put(tuple(new_partition))
 
     # get better aprox for past error
-    Ai = (1-p)*pi * gamma * binom(i-1, k-1) * minimal_element
-    # Ai = (1-p)*pi * gamma * binom(i-1, k-1) * maximal_element
+    Ai = (1-p)*pi * error_size * binom(i-1, k-1) * minimal_element
+    # alternativa:  Ai = (1-p)*pi * gamma * binom(i-1, k-1) * maximal_element
 
-    return ans, gamma, Ai
+    return ans, computed_size, Ai
 
 
-def probability(m: int, p: float, *qs: float, epsilon=0.01, exponent=0) -> float:
+def probability(m: int, p: float, *qs: float, epsilon=0.0001, exponent=0, get_computed_size=get_cs_gamma):
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -232,7 +318,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     '''
     if not exponent == 0:
         print('Not implemented exponent <> 0')
-        raise(NotImplementedError) 
+        raise (NotImplementedError)
     # initalizing
     k = len(qs)
     P = 0
@@ -242,7 +328,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     coef = {}
 
     # set gamma to whatever
-    gamma = 1
+    computed_size = 1
 
     # p^i
     pi = exp(p, k-1)  # p**(k-1)
@@ -259,8 +345,8 @@ Return the aproximation of the probability of parsing any word v, which include 
         pi *= p
 
         # get inner sum aproximation, the new gamm, anbd the new A_i
-        sum_over_partitions, gamma, Ai = multinomial_aprox(
-            coef, i, *qs, gamma=gamma, epsilon=epsilon, p=p, M=m, pi=pi, exponent=exponent)
+        sum_over_partitions, computed_size, Ai = multinomial_aprox(
+            coef, i, *qs, epsilon=epsilon, p=p, M=m, pi=pi, prev_computed_size=computed_size, get_computed_size=get_computed_size)
 
         # update A
         A += Ai
