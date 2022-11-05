@@ -1,6 +1,6 @@
 from audioop import mul
 from math import factorial
-
+from math import log
 from numpy import partition
 from utils import partitions, powerset, even, multinomial, exp, sign
 from tqdm import tqdm
@@ -96,7 +96,7 @@ def get_cs_constant_gamma(max_i, M, i, p, k, pi, epsilon, prev_cs):
     if i > k:
         return prev_cs
     denominator = f_gamma(M, i, p, k, pi) * max_i
-    gamma = epsilon/denominator
+    gamma = min(epsilon/denominator, 1)
     return 1-gamma
 
 
@@ -111,9 +111,9 @@ def get_cs_gamma(max_i, M, i, p, k, pi, epsilon, prev_cs):
 
     denominator = f_gamma(M, i, p, k, pi) * max_i
     if i == k:
-        gamma = epsilon/denominator
+        gamma = min(epsilon/denominator, 1)
     else:
-        gamma = min(epsilon/denominator, gamma)
+        gamma = min(epsilon/denominator, gamma, 1)
     return 1-gamma
 
 
@@ -150,7 +150,7 @@ def get_cs_decrease_poly(max_i, M, i, p, k, pi, epsilon, prev_cs):
 
     denominator = f_poly(M, i, p, k, pi)
     diff = diff_poly(M, i, p, k, pi)
-    gamma = (epsilon/max_i - diff)/denominator
+    gamma = min((epsilon/max_i - diff)/denominator, 1 )
     return (1-gamma)/(i**2)
 
 def diff_exp(M, j, p, k, pi):
@@ -186,7 +186,7 @@ def get_cs_decrease_exp(max_i, M, i, p, k, pi, epsilon, prev_cs):
 
     denominator = f_exp(M, i, p, k, pi)
     diff = diff_exp(M, i, p, k, pi)
-    gamma = (epsilon/max_i - diff)/denominator
+    gamma =min( (epsilon/max_i - diff)/denominator, 1)
     return (1-gamma)/exp(2,i)
 
 
@@ -278,8 +278,17 @@ def multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, p: float, M: int,
 
     return ans, computed_size, Ai
 
+def n_iter(epsilon, p, *qs):
+    '''
+    Returns minimal M, such that the finite sum for i=k, k+1, ..., M
+    differs from infinite sum i >= k for less than epsilon.
+    '''
+    Q = sum(qs)
+    pQ = p*Q
+    M = log(epsilon * (1-pQ)/(1-p)) / log(pQ)
+    return int(M) + 1
 
-def probability(m: int, p: float, *qs: float, epsilon=0.0001, exponent=0, get_computed_size=get_cs_gamma):
+def probability(p: float, *qs: float, epsilon=0.0001, get_computed_size=get_cs_gamma, verbose=0):
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -316,9 +325,13 @@ Return the aproximation of the probability of parsing any word v, which include 
     >>> probability(10,0.5,1)
     0.49951171875
     '''
-    if not exponent == 0:
-        print('Not implemented exponent <> 0')
-        raise (NotImplementedError)
+    # The error, done by only computing finite number of elemets, is at most epsilon / 2
+    # the error, done by leaving elemnts of the inner sum is at most epsilon /2 
+    # --> the total error < epsilon
+    epsilon /= 2
+    # get number of iterations
+    m = n_iter(epsilon, p, *qs)
+
     # initalizing
     k = len(qs)
     P = 0
@@ -355,4 +368,6 @@ Return the aproximation of the probability of parsing any word v, which include 
         dP = (1-p)*pi * sum_over_partitions
         # new estimate
         P += dP
+        if verbose:
+            print('dp = ', dP, 'Ai = ', Ai)
     return P
