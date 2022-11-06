@@ -1,4 +1,5 @@
 from audioop import mul
+from distutils.log import error
 from math import factorial
 from math import log
 from numpy import partition
@@ -130,6 +131,7 @@ def diff_poly(M, j, p, k, pi):
         ans += (1-p)*pi*binom(i-1, k-1)*(i**2-1)/(i**2)
     return ans
 
+
 def f_poly(M, j, p, k, pi):
     '''
     TODO
@@ -143,6 +145,7 @@ def f_poly(M, j, p, k, pi):
         ans += (1-p)*pi*binom(i-1, k-1)/(i**2)
     return ans
 
+
 def get_cs_decrease_poly(max_i, M, i, p, k, pi, epsilon, prev_cs):
     if i > k:
         # prev_cs = (1-gamma)/(i-1)²
@@ -150,8 +153,9 @@ def get_cs_decrease_poly(max_i, M, i, p, k, pi, epsilon, prev_cs):
 
     denominator = f_poly(M, i, p, k, pi)
     diff = diff_poly(M, i, p, k, pi)
-    gamma = min((epsilon/max_i - diff)/denominator, 1 )
+    gamma = min((epsilon/max_i - diff)/denominator, 1)
     return (1-gamma)/(i**2)
+
 
 def diff_exp(M, j, p, k, pi):
     '''
@@ -163,8 +167,9 @@ def diff_exp(M, j, p, k, pi):
     pi /= p
     for i in range(j, M+k+1):
         pi *= p
-        ans += (1-p)*pi*binom(i-1, k-1)*(exp(2,i)-1)/(exp(2,i))
+        ans += (1-p)*pi*binom(i-1, k-1)*(exp(2, i)-1)/(exp(2, i))
     return ans
+
 
 def f_exp(M, j, p, k, pi):
     '''
@@ -176,8 +181,9 @@ def f_exp(M, j, p, k, pi):
     pi /= p
     for i in range(j, M+k+1):
         pi *= p
-        ans += (1-p)*pi*binom(i-1, k-1)/(exp(2,i))
+        ans += (1-p)*pi*binom(i-1, k-1)/(exp(2, i))
     return ans
+
 
 def get_cs_decrease_exp(max_i, M, i, p, k, pi, epsilon, prev_cs):
     if i > k:
@@ -186,11 +192,11 @@ def get_cs_decrease_exp(max_i, M, i, p, k, pi, epsilon, prev_cs):
 
     denominator = f_exp(M, i, p, k, pi)
     diff = diff_exp(M, i, p, k, pi)
-    gamma =min( (epsilon/max_i - diff)/denominator, 1)
-    return (1-gamma)/exp(2,i)
+    gamma = min((epsilon/max_i - diff)/denominator, 1)
+    return (1-gamma)/exp(2, i)
 
 
-def multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, p: float, M: int, pi: float, prev_computed_size: float, get_computed_size):
+def multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, p: float, M: int, pi: float, prev_computed_size: float, get_computed_size, verbose):
     '''
     Sums the first get_computed_size% elements  of an inner sum using BFS
 
@@ -278,6 +284,83 @@ def multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, p: float, M: int,
 
     return ans, computed_size, Ai
 
+
+def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose):
+    '''
+    Sum the biggest elements of the inner sum, until the error is smaller than epsilon
+
+    Returns
+    ----------
+    sum_of_elemets, new_gamma, Ai (aprox of the error made)
+    '''
+    ans = 0
+    k = len(qs)
+    # top is at E[X] = i(q1, ..., qk)
+    sum_q = sum(qs)
+    top = (int(round(i*q/sum_q, 0)) for q in qs)
+    top = integer_maximum_aprox(i, top)
+    # in queue are elements of the sum, yet to be visited
+    # parametrised by partitions (l1, ..., lk), where l1 +...+ lk = i
+    q = Queue()
+    q.put(top)
+
+    visited = set()
+
+    # get maximal element
+    maximal_element = kappa(top, *qs, coef=coef)
+    # update minimal element calculated
+    minimal_element = maximal_element
+
+    # error estimation:
+    n_partitions = binom(i-1, k-1)
+    n_visited = 0
+
+    while not q.empty():
+        # get new  partition
+        partition = q.get()
+        if partition in visited:
+            continue
+
+        # this was unvisited, change to visited
+        visited.add(partition)
+        n_visited += 1
+
+        # get new coeficient
+        if coef.get(partition) is None:
+            coef[partition] = multinomial(*partition, coef=coef)
+
+        # get the element of the sum, coresponding to the partition
+        prod = 1
+        for index, l in enumerate(partition):
+            prod *= exp(qs[index], l)
+        # curr - current element of the sum
+        curr = coef[partition]*prod
+        # add to the inner sum aproximation
+        ans += curr
+
+        # update minimal element
+        minimal_element = min(minimal_element, curr)
+
+        # recalculate the error:
+        error_estimation = minimal_element*(n_partitions - n_visited)
+        if error_estimation < epsilon:
+            break
+
+        # add new partitionss to the queue
+        for j in range(len(partition)):
+            for jj in range(len(partition)):
+                if jj == j:
+                    continue
+                new_partition = list(partition)
+                new_partition[jj] += 1
+                new_partition[j] -= 1
+                if new_partition[j] <= 0:
+                    continue
+                q.put(tuple(new_partition))
+
+    return ans,  epsilon - error_estimation 
+
+
 def n_iter(epsilon, p, *qs):
     '''
     Returns minimal M, such that the finite sum for i=k, k+1, ..., M
@@ -288,7 +371,8 @@ def n_iter(epsilon, p, *qs):
     M = log(epsilon * (1-pQ)/(1-p)) / log(pQ)
     return int(M) + 1
 
-def probability(p: float, *qs: float, epsilon=0.0001, get_computed_size=get_cs_gamma, verbose=0):
+
+def probability(p: float, *qs: float, epsilon=0.0001, get_computed_size=get_cs_gamma, verbose=1, adaptive=0, m=None):
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -325,12 +409,15 @@ Return the aproximation of the probability of parsing any word v, which include 
     >>> probability(10,0.5,1)
     0.49951171875
     '''
-    # The error, done by only computing finite number of elemets, is at most epsilon / 2
-    # the error, done by leaving elemnts of the inner sum is at most epsilon /2 
-    # --> the total error < epsilon
-    epsilon /= 2
     # get number of iterations
-    m = n_iter(epsilon, p, *qs)
+    if m is None:
+        # The error, done by only computing finite number of elemets, is at most epsilon / 2
+        # the error, done by leaving elemnts of the inner sum is at most epsilon /2
+        # --> the total error < epsilon
+        epsilon /= 2
+        m = n_iter(epsilon, p, *qs)
+        if verbose:
+            print(f'Number of iterations: {m}')
 
     # initalizing
     k = len(qs)
@@ -358,8 +445,15 @@ Return the aproximation of the probability of parsing any word v, which include 
         pi *= p
 
         # get inner sum aproximation, the new gamm, anbd the new A_i
-        sum_over_partitions, computed_size, Ai = multinomial_aprox(
-            coef, i, *qs, epsilon=epsilon, p=p, M=m, pi=pi, prev_computed_size=computed_size, get_computed_size=get_computed_size)
+        if adaptive:
+            j = m+k-1-i
+            Ai = 0
+            
+            sum_over_partitions, epsilon = adaptive_multinomial_aprox(
+                coef, j, *qs, epsilon=epsilon, verbose=verbose)
+        else:
+            sum_over_partitions, computed_size, Ai = multinomial_aprox(
+                coef, i, *qs, epsilon=epsilon, p=p, M=m, pi=pi, prev_computed_size=computed_size, get_computed_size=get_computed_size, verbose=verbose)
 
         # update A
         A += Ai
@@ -368,6 +462,5 @@ Return the aproximation of the probability of parsing any word v, which include 
         dP = (1-p)*pi * sum_over_partitions
         # new estimate
         P += dP
-        if verbose:
-            print('dp = ', dP, 'Ai = ', Ai)
+
     return P
