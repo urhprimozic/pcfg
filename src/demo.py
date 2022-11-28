@@ -9,6 +9,7 @@ from tqdm import tqdm
 from utils import multinomial, partitions
 import matplotlib.cm as cm
 from linear import probability, probability_exact
+from matplotlib.cm import ScalarMappable 
 
 N = 103
 
@@ -100,7 +101,8 @@ def plot_sum_elements_dist(i, q1, q2):
     
 
 
-if __name__ == 'main':
+# if __name__ == 'main':
+if 1:
     i = 15#25
     q1 = 0.3
     q2 = 0.3
@@ -115,6 +117,8 @@ if __name__ == 'main':
     # data  k = 2 
     pars = partitions(i, 3)
     heights = [dist.pmf(par) for par in pars]
+    heights_contour = np.zeros((i+1,i+1))
+
 
     x = [p[0] for p in pars] 
     y = [p[1] for p in pars] 
@@ -129,7 +133,37 @@ if __name__ == 'main':
     rgbs = [cmap( (h - min_height)/max_height ) for h in heights ]
 
 
+    sm = ScalarMappable(cmap=cmap, norm=plt.Normalize(0,max_height)) #norm=plt.Normalize(0,max(data_color))
+    sm.set_array([])
+
+    cbar = plt.colorbar(sm)
+    cbar.set_label('$\kappa(l_1, l_2, l_3)$', rotation=270,labelpad=25)
+
+
     ax.bar3d(x, y, z, dx,dx,heights, color=rgbs)
+    ax.set_xlabel('$l_1$')
+    ax.set_ylabel('$l_2$')
+    #ax.set_axis_off() 
+    ax.set_zticklabels([])
+    ax.view_init(90,-90)
+    # ax.set_zlabel('$\kappa(l_1, l_2, l_3)$')
     plt.savefig(f'sum_elemets_i{i}_q1{q1}_q2{q2}_q3{q3}.pdf')
+    plt.show()
+
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    x = [j for j in range(i+1)]
+    y = [j for j in range(i+1)]
+    for par in pars:
+        heights_contour[par[0], par[1]] = dist.pmf(par)
+
+    levels = int(len(pars)/10)
+    levels=10
+
+    contour = plt.contourf(x, y,heights_contour, cmap=cmap)
+    plt.colorbar(contour)
+    plt.xlabel('$l_1$')
+    plt.ylabel('$l_2$')
+    plt.savefig(f'contour.pdf')
     plt.show()
 
