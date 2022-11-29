@@ -50,7 +50,7 @@ def measure_exact(p, *qs, verbose=0):
     return exact_time
 
 
-def compare(out_dir_data, out_dir_img, linear_epsilons=True):
+def compare(out_dir_data, out_dir_img, linear_epsilons=True, force_compute=False):
     os.makedirs(out_dir_data, exist_ok=True)
     os.makedirs(out_dir_img, exist_ok=True)
 
@@ -62,50 +62,63 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True):
     if linear_epsilons:
         epsilons = np.linspace(1e-8, 0.1, 10)
     else:
-        epsilons = np.logspace(-8, -1, 10)
-    print("Using epsilons", epsilons)
-    print("Standard approximation")
-    data = []
-    for k in tqdm(ks):
-        data.append([measure_approximation(p, *eq_qs(k), epsilon=eps, adaptive=False, verbose=1) for eps in epsilons])
-
-    print("adaptive approach")
-    data_adaptive = []
-    for k in tqdm(ks):
-        data_adaptive.append([measure_approximation(p, *eq_qs(k), epsilon=eps, adaptive=True) for eps in epsilons])
-
-    print("uniform approach")
-    data_uniform = []
-    for k in tqdm(ks):
-        data_uniform.append(
-            [
-                measure_approximation(
-                    p, *eq_qs(k), epsilon=eps, adaptive=False, cs_getter=get_cs_gamma_uniform
-                )
-                for eps in epsilons
-            ]
-        )
-
-    print("exact formula")
-    data_exact = []
-    for k in tqdm(ks_exact):
-        if k == 5:
-            measure_exact(p, *eq_qs(k))
-        gc.collect()
-        data_exact.append(measure_exact(p, *eq_qs(k)))
-        print('k=', k, 'time: ', data_exact[-1])
-
-    # save data
+        epsilons = np.logspace(-8, -1, 8)
     scale = "lin" if linear_epsilons else "log"
-    with open(os.path.join(out_dir_data, f'time_probability_{scale}.pickle'), 'wb') as f:
-        pickle.dump(data, f)
-    with open(os.path.join(out_dir_data, f'time_probability_adaptive_{scale}.pickle'), 'wb') as f:
-        pickle.dump(data_adaptive, f)
-    with open(os.path.join(out_dir_data, f'time_probability_uniform_{scale}.pickle'), 'wb') as f:
-        pickle.dump(data_uniform, f)
-    with open(os.path.join(out_dir_data, f'time_probability_exact_{scale}.pickle'), 'wb') as f:
-        pickle.dump(data_exact, f)
+    print("Using epsilons", epsilons)
+    file_standard = os.path.join(out_dir_data, f'time_probability_{scale}.pickle')
+    file_adaptive = os.path.join(out_dir_data, f'time_probability_adaptive_{scale}.pickle')
+    file_uniform = os.path.join(out_dir_data, f'time_probability_uniform_{scale}.pickle')
+    file_exact = os.path.join(out_dir_data, f'time_probability_exact_{scale}.pickle')
+    if force_compute or not os.path.exists(file_standard):
+        print("Standard approximation")
+        data = []
+        for k in tqdm(ks):
+            data.append(
+                [measure_approximation(p, *eq_qs(k), epsilon=eps, adaptive=False, verbose=1) for eps in epsilons])
+        with open(file_standard, 'wb') as f:
+            pickle.dump(data, f)
+    if force_compute or not os.path.exists(file_adaptive):
+        print("adaptive approach")
+        data_adaptive = []
+        for k in tqdm(ks):
+            data_adaptive.append([measure_approximation(p, *eq_qs(k), epsilon=eps, adaptive=True) for eps in epsilons])
+        with open(file_adaptive, 'wb') as f:
+            pickle.dump(data_adaptive, f)
+    if force_compute or not os.path.exists(file_uniform):
+        print("uniform approach")
+        data_uniform = []
+        for k in tqdm(ks):
+            data_uniform.append(
+                [
+                    measure_approximation(
+                        p, *eq_qs(k), epsilon=eps, adaptive=False, cs_getter=get_cs_gamma_uniform
+                    )
+                    for eps in epsilons
+                ]
+            )
+        with open(file_uniform, 'wb') as f:
+            pickle.dump(data_uniform, f)
+    if force_compute or not os.path.exists(file_exact):
+        print("exact formula")
+        data_exact = []
+        for k in tqdm(ks_exact):
+            if k == 5:
+                measure_exact(p, *eq_qs(k))
+            gc.collect()
+            data_exact.append(measure_exact(p, *eq_qs(k)))
+            print('k=', k, 'time: ', data_exact[-1])
+        # save data
+        with open(file_exact, 'wb') as f:
+            pickle.dump(data_exact, f)
 
+    with open(file_standard, 'rb') as f:
+        data = pickle.load(f)
+    with open(file_adaptive, 'rb') as f:
+        data_adaptive = pickle.load(f)
+    with open(file_uniform, 'rb') as f:
+        data_uniform = pickle.load(f)
+    with open(file_exact, 'rb') as f:
+        data_exact = pickle.load(f)
     print('Aproximation times:')
     print(data)
     print('Adaptive aproximation  times:')
@@ -114,9 +127,7 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True):
     print(data_uniform)
     print('Exact times:')
     print(data_exact)
-
     colors = ['green', 'orange', 'blue', 'red']
-
     for i in range(len(ks)):
         plt.plot(epsilons, data[i], label=f'k={ks[i]}', color=colors[i])
     for i in range(len(ks_exact)):
@@ -163,5 +174,5 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True):
 
 
 if __name__ == "__main__":
-    compare("../data2", "../img2", True)
+    # compare("../data2", "../img2", True)
     compare("../data2", "../img2", False)
