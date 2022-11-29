@@ -97,13 +97,14 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True):
         print('k=', k, 'time: ', data_exact[-1])
 
     # save data
-    with open(os.path.join(out_dir_data, 'time_probability.pickle'), 'wb') as f:
+    scale = "lin" if linear_epsilons else "log"
+    with open(os.path.join(out_dir_data, f'time_probability_{scale}.pickle'), 'wb') as f:
         pickle.dump(data, f)
-    with open(os.path.join(out_dir_data, 'time_probability_adaptive.pickle'), 'wb') as f:
+    with open(os.path.join(out_dir_data, f'time_probability_adaptive_{scale}.pickle'), 'wb') as f:
         pickle.dump(data_adaptive, f)
-    with open(os.path.join(out_dir_data, 'time_probability_uniform.pickle'), 'wb') as f:
+    with open(os.path.join(out_dir_data, f'time_probability_uniform_{scale}.pickle'), 'wb') as f:
         pickle.dump(data_uniform, f)
-    with open(os.path.join(out_dir_data, 'time_probability_exact.pickle'), 'wb') as f:
+    with open(os.path.join(out_dir_data, f'time_probability_exact_{scale}.pickle'), 'wb') as f:
         pickle.dump(data_exact, f)
 
     print('Aproximation times:')
@@ -128,7 +129,7 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True):
     plt.title('Execution time of aproximation')
     plt.xlabel('Epsilon')
     plt.ylabel('Execution time')
-    plt.savefig(os.path.join(out_dir_img, 'executions.png'))
+    plt.savefig(os.path.join(out_dir_img, f'executions_{scale}.png'))
     plt.show()
 
     for i in range(len(ks)):
@@ -142,7 +143,7 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True):
     plt.title('Execution time of adaptive aproximation')
     plt.xlabel('Epsilon')
     plt.ylabel('Execution time')
-    plt.savefig(os.path.join(out_dir_img, 'executions_adaptive.png'))
+    plt.savefig(os.path.join(out_dir_img, f'executions_adaptive_{scale}.png'))
     plt.show()
 
     for i in range(len(ks)):
@@ -158,9 +159,10 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True):
     plt.title('Execution time of aproximations')
     plt.xlabel('Epsilon')
     plt.ylabel('Execution time')
-    plt.savefig(os.path.join(out_dir_img, 'executions_adaptive_vs_normal_vs_uniform.png'))
+    plt.savefig(os.path.join(out_dir_img, f'executions_adaptive_vs_normal_vs_uniform_{scale}.png'))
     plt.show()
 
 
 if __name__ == "__main__":
-    compare("../data2", "../img2")
+    compare("../data2", "../img2", True)
+    compare("../data2", "../img2", False)
