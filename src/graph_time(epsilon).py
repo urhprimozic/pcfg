@@ -2,6 +2,7 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 epsilons = np.linspace(1e-8, 0.1, 10)
 ks = [5,10,20,30]
 ks_exact = [5,10,20]

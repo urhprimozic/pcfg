@@ -8,15 +8,17 @@ import pickle
 import numpy as np
 import gc
 
+
 def measure_time(p: float, *qs: float, epsilon=0.0001, adaptive=0, verbose=0):
     start = time.time()
     probability(p, *qs, epsilon=epsilon, adaptive=adaptive)
     end = time.time()
     exect_time = end - start
- #   exect_time = timeit(probability(p, *qs, epsilon=epsilon, adaptive=adaptive)) 
+    #   exect_time = timeit(probability(p, *qs, epsilon=epsilon, adaptive=adaptive))
     if verbose:
         print(f'probability({p}, k={k}, eps={epsilon}) done in {exect_time}')
     return exect_time
+
 
 def measure_exact(p, *qs, verbose=0):
     start = time.time()
@@ -24,34 +26,34 @@ def measure_exact(p, *qs, verbose=0):
     end = time.time()
     if verbose:
         print('exact done in ', end - start)
-    return end - start 
+    return end - start
 
-ks = [5,10,20,30]
-ks_exact = [5,10,20]
+
+ks = [5, 10, 20, 30]
+ks_exact = [5, 10, 20]
 p = 0.5
+
 ############## running time (epsilon)
 epsilons = np.linspace(1e-8, 0.1, 10)
 
 ## nomral probabiliy
-#data = []
-#for k in tqdm(ks, total=len(ks)):
+# data = []
+# for k in tqdm(ks, total=len(ks)):
 #    data.append([measure_time(p, *eq_qs(k), epsilon= eps, adaptive=0) for eps in epsilons])
 #
 ## adaptive approach
-#data_adaptive = []
-#for k in tqdm(ks, total=len(ks)):
+# data_adaptive = []
+# for k in tqdm(ks, total=len(ks)):
 #    data_adaptive.append([measure_time(p, *eq_qs(k), epsilon= eps, adaptive=1) for eps in epsilons])
 
 # exact formula
-data_exact=[]
+data_exact = []
 for k in tqdm(ks_exact, total=len(ks_exact)):
     if k == 5:
         measure_exact(p, *eq_qs(k))
-    gc.collect() 
+    gc.collect()
     data_exact.append(measure_exact(p, *eq_qs(k)))
-    print('k=', k, 'time: ', data_exact[-1]) 
-
-
+    print('k=', k, 'time: ', data_exact[-1])
 
 # save data
 # with open('../data/time_probability.pickle', 'wb') as f:

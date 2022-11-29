@@ -372,7 +372,7 @@ def n_iter(epsilon, p, *qs):
     return int(M) + 1
 
 
-def probability(p: float, *qs: float, epsilon=0.0001, get_computed_size=get_cs_gamma, verbose=1, adaptive=0, m=None):
+def probability(p: float, *qs: float, epsilon=0.0001, get_computed_size=get_cs_gamma, verbose=0, adaptive=0, m=None):
     '''
     Return the aproximation of the probability of parsing any word v, which include exactly len(qs) diffferent sybols x_i, and P(V -> x_i) = qs[i-1]
 
@@ -445,15 +445,20 @@ Return the aproximation of the probability of parsing any word v, which include 
         pi *= p
 
         # get inner sum aproximation, the new gamm, anbd the new A_i
-        if adaptive:
+        if adaptive == 2:
+            # do something, Matej
+            raise NotImplementedError("Not implemented yet")
+        elif adaptive == 1:
             j = m+k-1-i
             Ai = 0
             
             sum_over_partitions, epsilon = adaptive_multinomial_aprox(
                 coef, j, *qs, epsilon=epsilon, verbose=verbose)
-        else:
+        elif adaptive == 0:
             sum_over_partitions, computed_size, Ai = multinomial_aprox(
                 coef, i, *qs, epsilon=epsilon, p=p, M=m, pi=pi, prev_computed_size=computed_size, get_computed_size=get_computed_size, verbose=verbose)
+        else:
+            raise ValueError(f"Unexpected value of adaptive ({adaptive}). Should be 0, 1 or 2.")
 
         # update A
         A += Ai
