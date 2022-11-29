@@ -1,6 +1,6 @@
 from utils import eq_qs
 from timeit import timeit
-from linear import probability, probability_exact
+from linear import probability, probability_exact, get_cs_gamma, get_cs_gamma_uniform
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pickle
@@ -10,6 +10,7 @@ import os
 
 
 def number_of_iterations_for_timeit(statement, global_values):
+    return 1
     minimal_repetitions = 2
     maximal_repetitions = 10 ** 6
     expected_time = 5
@@ -20,9 +21,14 @@ def number_of_iterations_for_timeit(statement, global_values):
         return maximal_repetitions
 
 
-def measure_approximation(p: float, *qs: float, epsilon=0.0001, adaptive=0, verbose=0):
-    statement = "probability(p, *qs, epsilon=epsilon, adaptive=adaptive)"
-    global_values = {"probability": probability, "p": p, "qs": qs, "epsilon": epsilon, "adaptive": adaptive}
+def measure_approximation(p: float, *qs: float, epsilon=0.0001, adaptive=False, verbose=0, cs_getter=get_cs_gamma):
+    statement = "probability(p, *qs, epsilon=epsilon, adaptive=adaptive, get_computed_size=get_computed_size, verbose=1)"
+    global_values = {
+        "probability": probability,
+        "p": p, "qs": qs, "epsilon": epsilon,
+        "adaptive": adaptive,
+        "get_computed_size": cs_getter
+    }
     number = number_of_iterations_for_timeit(statement, global_values)
     print(f"Will execute '{statement}' {number}-times.")
     exact_time = timeit(statement, globals=global_values, number=number) / number
@@ -55,18 +61,29 @@ def compare(out_dir_data, out_dir_img):
 
     # running time (epsilon)
     epsilons = np.linspace(1e-8, 0.1, 10)
-
-    # normal probabiliy
+    print("Standard approximation")
     data = []
     for k in tqdm(ks):
-       data.append([measure_approximation(p, *eq_qs(k), epsilon=eps, adaptive=0, verbose=1) for eps in epsilons])
+        data.append([measure_approximation(p, *eq_qs(k), epsilon=eps, adaptive=False, verbose=1) for eps in epsilons])
 
-    # adaptive approach
+    print("adaptive approach")
     data_adaptive = []
     for k in tqdm(ks):
-        data_adaptive.append([measure_approximation(p, *eq_qs(k), epsilon=eps, adaptive=1) for eps in epsilons])
+        data_adaptive.append([measure_approximation(p, *eq_qs(k), epsilon=eps, adaptive=True) for eps in epsilons])
 
-    # exact formula
+    print("uniform approach")
+    data_uniform = []
+    for k in tqdm(ks):
+        data_uniform.append(
+            [
+                measure_approximation(
+                    p, *eq_qs(k), epsilon=eps, adaptive=False, cs_getter=get_cs_gamma_uniform
+                )
+                for eps in epsilons
+            ]
+        )
+
+    print("exact formula")
     data_exact = []
     for k in tqdm(ks_exact):
         if k == 5:
@@ -80,6 +97,8 @@ def compare(out_dir_data, out_dir_img):
         pickle.dump(data, f)
     with open(os.path.join(out_dir_data, 'time_probability_adaptive.pickle'), 'wb') as f:
         pickle.dump(data_adaptive, f)
+    with open(os.path.join(out_dir_data, 'time_probability_uniform.pickle'), 'wb') as f:
+        pickle.dump(data_uniform, f)
     with open(os.path.join(out_dir_data, 'time_probability_exact.pickle'), 'wb') as f:
         pickle.dump(data_exact, f)
 
@@ -87,6 +106,8 @@ def compare(out_dir_data, out_dir_img):
     print(data)
     print('Adaptive aproximation  times:')
     print(data_adaptive)
+    print("Uniform approximation times:")
+    print(data_uniform)
     print('Exact times:')
     print(data_exact)
 
@@ -124,6 +145,8 @@ def compare(out_dir_data, out_dir_img):
         plt.plot(epsilons, data[i], label=f'$\gamma$, k={ks[i]}', color=colors[i])
     for i in range(len(ks)):
         plt.plot(epsilons, data_adaptive[i], linestyle='dotted', label=f'Adaptive, k={ks[i]}', color=colors[i])
+    for i in range(len(ks)):
+        plt.plot(epsilons, data_uniform[i], linestyle='dashed', label=f'Uniform, k={ks[i]}', color=colors[i])
 
     plt.yscale('log')
     plt.plot()
@@ -131,7 +154,7 @@ def compare(out_dir_data, out_dir_img):
     plt.title('Execution time of aproximations')
     plt.xlabel('Epsilon')
     plt.ylabel('Execution time')
-    plt.savefig(os.path.join(out_dir_img, 'executions_adaptive_vs_normal.png'))
+    plt.savefig(os.path.join(out_dir_img, 'executions_adaptive_vs_normal_vs_uniform.png'))
     plt.show()
 
 

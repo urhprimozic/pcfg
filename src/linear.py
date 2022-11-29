@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from queue import Queue
 from scipy.special import binom
 from mpmath import hyp2f1  # hypergeometric function
+from typing import Callable, Tuple
 
 
 def probability_exact(p: float, *qs: float) -> float:
@@ -98,7 +99,7 @@ def get_cs_constant_gamma(max_i, M, i, p, k, pi, epsilon, prev_cs):
         return prev_cs
     denominator = f_gamma(M, i, p, k, pi) * max_i
     gamma = min(epsilon/denominator, 1)
-    return 1-gamma
+    return gamma, 1-gamma
 
 
 def get_cs_gamma(max_i, M, i, p, k, pi, epsilon, prev_cs):
@@ -107,15 +108,26 @@ def get_cs_gamma(max_i, M, i, p, k, pi, epsilon, prev_cs):
 
     gamma_1 >= gamma_2 >= gamma_3 ... 
     '''
-    # extract the previous gamma
-    gamma = 1-prev_cs
+    gamma, _ = prev_cs
 
     denominator = f_gamma(M, i, p, k, pi) * max_i
     if i == k:
         gamma = min(epsilon/denominator, 1)
     else:
         gamma = min(epsilon/denominator, gamma, 1)
-    return 1-gamma
+    return gamma, 1-gamma
+
+
+def get_cs_gamma_uniform(max_i, M, i, p, k, pi, epsilon, prev_cs):
+    gamma, _ = prev_cs
+    if i == k:
+        gamma = epsilon / M / (1 - p) / max_i / pi
+    else:
+        gamma = gamma * (i - k) / p / i
+    # it is important to keep gamma as high as possible,
+    # so do not say gamma = max(1, gamma)
+    cs = max(0.0, 1.0 - gamma)
+    return gamma, cs
 
 
 def diff_poly(M, j, p, k, pi):
@@ -147,14 +159,16 @@ def f_poly(M, j, p, k, pi):
 
 
 def get_cs_decrease_poly(max_i, M, i, p, k, pi, epsilon, prev_cs):
+    gamma, cs = prev_cs
     if i > k:
-        # prev_cs = (1-gamma)/(i-1)²
-        return prev_cs*((i-1)**2)/(i**2)
+        # cs = (1-gamma)/(i-1)²
+        new_cs = cs*((i-1)**2)/(i**2)
+        return 1 - new_cs, new_cs
 
     denominator = f_poly(M, i, p, k, pi)
     diff = diff_poly(M, i, p, k, pi)
     gamma = min((epsilon/max_i - diff)/denominator, 1)
-    return (1-gamma)/(i**2)
+    return gamma, (1-gamma)/(i**2)
 
 
 def diff_exp(M, j, p, k, pi):
@@ -186,23 +200,40 @@ def f_exp(M, j, p, k, pi):
 
 
 def get_cs_decrease_exp(max_i, M, i, p, k, pi, epsilon, prev_cs):
+    gamma, cs = prev_cs
     if i > k:
-        # prev_cs = (1-gamma)/(i-1)²
-        return prev_cs*((i-1)**2)/(i**2)
+        # cs = (1-gamma)/(i-1)²
+        new_cs = cs*((i-1)**2)/(i**2)
+        return 1 - new_cs, new_cs
 
     denominator = f_exp(M, i, p, k, pi)
     diff = diff_exp(M, i, p, k, pi)
     gamma = min((epsilon/max_i - diff)/denominator, 1)
-    return (1-gamma)/exp(2, i)
+    return gamma, (1-gamma)/exp(2, i)
 
 
-def multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, p: float, M: int, pi: float, prev_computed_size: float, get_computed_size, verbose):
+def multinomial_aprox(
+        coef: dict,
+        i: int, *qs,
+        epsilon: float,
+        p: float,
+        M: int,
+        pi: float,
+        prev_computed_size: Tuple[float, float],
+        get_computed_size: Callable[
+            [float, int, int, float, int, float, float, Tuple[float, float]],
+            Tuple[float, float]
+        ],
+        verbose: int
+):
     '''
     Sums the first get_computed_size% elements  of an inner sum using BFS
 
-    - coef : dictionary of mult. coefifcients 
+    - coef : dictionary of mult. coefficients
     - i - current iteration
-    - get_computed_size(max_i, M, i, p, k, pi, epsilon, prev_cs): - function that returns percent of elements computed in this iteration
+    - get_computed_size(max_i, M, i, p, k, pi, epsilon, prev_gama_and_cs):
+            - function that returns the pair gamma, computed size
+              (upper bound for proportion of skipped elements, proportion of elements computed in this iteration)
 
     Returns
     ----------
@@ -226,7 +257,7 @@ def multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, p: float, M: int,
     # update minimal element calculated
     minimal_element = maximal_element
     # EPSILON SHOULD ALREADY BE REDUCED BY A
-    computed_size = get_computed_size(
+    gamma, computed_size = get_computed_size(
         maximal_element, M, i, p, k, pi, epsilon, prev_computed_size)
     error_size = 1 - computed_size
 
@@ -282,7 +313,7 @@ def multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, p: float, M: int,
     Ai = (1-p)*pi * error_size * binom(i-1, k-1) * minimal_element
     # alternativa:  Ai = (1-p)*pi * gamma * binom(i-1, k-1) * maximal_element
 
-    return ans, computed_size, Ai
+    return ans, (gamma, computed_size), Ai
 
 
 def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose):
@@ -357,7 +388,7 @@ def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose)
                 if new_partition[j] <= 0:
                     continue
                 q.put(tuple(new_partition))
-
+    print(f"    Computed size: {n_visited / n_partitions}")
     return ans,  epsilon - error_estimation 
 
 
@@ -412,7 +443,7 @@ Return the aproximation of the probability of parsing any word v, which include 
     # get number of iterations
     if m is None:
         # The error, done by only computing finite number of elemets, is at most epsilon / 2
-        # the error, done by leaving elemnts of the inner sum is at most epsilon /2
+        # the error, done by leaving elements of the inner sum is at most epsilon /2
         # --> the total error < epsilon
         epsilon /= 2
         m = n_iter(epsilon, p, *qs)
@@ -422,17 +453,17 @@ Return the aproximation of the probability of parsing any word v, which include 
     # initalizing
     k = len(qs)
     P = 0
-    # aproximation of an error, caused by skiping elements up to this point
+    # approximation of an error, caused by skiping elements up to this point
     A = 0
     # dictionary of multinomial coeficients
     coef = {}
 
     # set gamma to whatever
-    computed_size = 1
+    gamma_and_computed_size = (0.0, 1.0)
 
     # p^i
     pi = exp(p, k-1)  # p**(k-1)
-
+    epsilon0 = epsilon
     # iterations
     for i in range(k, m+k):
         # for i in tqdm(range(k, m+k), total=m):
@@ -444,28 +475,28 @@ Return the aproximation of the probability of parsing any word v, which include 
         # new pi = p^i
         pi *= p
 
-        # get inner sum aproximation, the new gamm, anbd the new A_i
-        if adaptive == 2:
-            # do something, Matej
-            raise NotImplementedError("Not implemented yet")
-        elif adaptive == 1:
+        # get inner sum approximation, the new gamma, anb the new A_i
+        if adaptive:
             j = m+k-1-i
             Ai = 0
             
             sum_over_partitions, epsilon = adaptive_multinomial_aprox(
                 coef, j, *qs, epsilon=epsilon, verbose=verbose)
-        elif adaptive == 0:
-            sum_over_partitions, computed_size, Ai = multinomial_aprox(
-                coef, i, *qs, epsilon=epsilon, p=p, M=m, pi=pi, prev_computed_size=computed_size, get_computed_size=get_computed_size, verbose=verbose)
         else:
-            raise ValueError(f"Unexpected value of adaptive ({adaptive}). Should be 0, 1 or 2.")
+            if i == k and epsilon0 != epsilon:
+                raise ValueError(f"Sorry, no go. Need epsilon0 = epsilon if get_computed_size is uniform")
+            sum_over_partitions, gamma_and_computed_size, Ai = multinomial_aprox(
+                coef, i, *qs, epsilon=epsilon, p=p, M=m, pi=pi,
+                prev_computed_size=gamma_and_computed_size, get_computed_size=get_computed_size, verbose=verbose
+            )
+            if verbose:
+                print(f"   Computed size at i = {i}: {gamma_and_computed_size[1]}")
 
         # update A
         A += Ai
 
         # estimation difference
-        dP = (1-p)*pi * sum_over_partitions
+        dP = (1 - p) * pi * sum_over_partitions
         # new estimate
         P += dP
-
     return P
