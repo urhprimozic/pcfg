@@ -257,8 +257,9 @@ def multinomial_aprox(
     # update minimal element calculated
     minimal_element = maximal_element
     # EPSILON SHOULD ALREADY BE REDUCED BY A
-    gamma, computed_size = get_computed_size(
+    gamma_and_computed_size = get_computed_size(
         maximal_element, M, i, p, k, pi, epsilon, prev_computed_size)
+    computed_size = gamma_and_computed_size[1]
     error_size = 1 - computed_size
 
     # number of sum elements that will get calculated
@@ -313,7 +314,7 @@ def multinomial_aprox(
     Ai = (1-p)*pi * error_size * binom(i-1, k-1) * minimal_element
     # alternativa:  Ai = (1-p)*pi * gamma * binom(i-1, k-1) * maximal_element
 
-    return ans, (gamma, computed_size), Ai
+    return ans, gamma_and_computed_size, Ai
 
 
 def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose):
@@ -388,7 +389,7 @@ def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose)
                 if new_partition[j] <= 0:
                     continue
                 q.put(tuple(new_partition))
-    print(f"    Computed size: {n_visited / n_partitions}")
+    # print(f"    Computed size: {n_visited / n_partitions}")
     return ans,  epsilon - error_estimation 
 
 

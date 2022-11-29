@@ -10,10 +10,9 @@ import os
 
 
 def number_of_iterations_for_timeit(statement, global_values):
-    return 1
     minimal_repetitions = 2
     maximal_repetitions = 10 ** 6
-    expected_time = 5
+    expected_time = 3
     t = timeit(statement, globals=global_values, number=1)
     if t > 0:
         return int(max(minimal_repetitions, expected_time / t))
