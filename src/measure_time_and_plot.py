@@ -22,7 +22,7 @@ def number_of_iterations_for_timeit(statement, global_values):
 
 
 def measure_approximation(p: float, *qs: float, epsilon=0.0001, adaptive=False, verbose=0, cs_getter=get_cs_gamma):
-    statement = "probability(p, *qs, epsilon=epsilon, adaptive=adaptive, get_computed_size=get_computed_size, verbose=1)"
+    statement = "probability(p, *qs, epsilon=epsilon, adaptive=adaptive, get_computed_size=get_computed_size)"
     global_values = {
         "probability": probability,
         "p": p, "qs": qs, "epsilon": epsilon,
@@ -51,7 +51,7 @@ def measure_exact(p, *qs, verbose=0):
     return exact_time
 
 
-def compare(out_dir_data, out_dir_img):
+def compare(out_dir_data, out_dir_img, linear_epsilons=True):
     os.makedirs(out_dir_data, exist_ok=True)
     os.makedirs(out_dir_img, exist_ok=True)
 
@@ -60,7 +60,11 @@ def compare(out_dir_data, out_dir_img):
     p = 0.5
 
     # running time (epsilon)
-    epsilons = np.linspace(1e-8, 0.1, 10)
+    if linear_epsilons:
+        epsilons = np.linspace(1e-8, 0.1, 10)
+    else:
+        epsilons = np.logspace(-8, -1, 10)
+    print("Using epsilons", epsilons)
     print("Standard approximation")
     data = []
     for k in tqdm(ks):
