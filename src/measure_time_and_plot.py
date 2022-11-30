@@ -128,11 +128,13 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True, force_compute=False
     print('Exact times:')
     print(data_exact)
     colors = ['green', 'orange', 'blue', 'red']
+    xs = list(range(len(epsilons)))
     for i in range(len(ks)):
-        plt.plot(epsilons, data[i], label=f'k={ks[i]}', color=colors[i])
+        plt.plot(xs, data[i], label=f'k={ks[i]}', color=colors[i])
     for i in range(len(ks_exact)):
         plt.axhline(data_exact[i], 0.045, 0.955, linestyle='dotted', label=f'exact formula, k={ks[i]}', color=colors[i])
         # plt.plot(0, data_exact[i], 'o',  label=f'exact formula, k={ks[i]}')
+    plt.xticks(xs, epsilons)
     plt.plot()
     plt.yscale('log')
     plt.legend()
@@ -143,10 +145,11 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True, force_compute=False
     plt.show()
 
     for i in range(len(ks)):
-        plt.plot(epsilons, data_adaptive[i], label=f'k={ks[i]}', color=colors[i])
+        plt.plot(xs, data_adaptive[i], label=f'k={ks[i]}', color=colors[i])
     for i in range(len(ks_exact)):
         plt.axhline(data_exact[i], 0.045, 0.95, linestyle='dotted', label=f'exact formula, k={ks[i]}', color=colors[i])
         # plt.plot(0, data_exact[i], 'o',  label=f'exact formula, k={ks[i]}')
+    plt.xticks(xs, epsilons)
     plt.yscale('log')
     plt.plot()
     plt.legend()
@@ -157,12 +160,12 @@ def compare(out_dir_data, out_dir_img, linear_epsilons=True, force_compute=False
     plt.show()
 
     for i in range(len(ks)):
-        plt.plot(epsilons, data[i], label=f'$\gamma$, k={ks[i]}', color=colors[i])
+        plt.plot(xs, data[i], label=f'$\gamma$, k={ks[i]}', color=colors[i])
     for i in range(len(ks)):
-        plt.plot(epsilons, data_adaptive[i], linestyle='dotted', label=f'Adaptive, k={ks[i]}', color=colors[i])
+        plt.plot(xs, data_adaptive[i], linestyle='dotted', label=f'Adaptive, k={ks[i]}', color=colors[i])
     for i in range(len(ks)):
-        plt.plot(epsilons, data_uniform[i], linestyle='dashed', label=f'Uniform, k={ks[i]}', color=colors[i])
-
+        plt.plot(xs, data_uniform[i], linestyle='dashed', label=f'Uniform, k={ks[i]}', color=colors[i])
+    plt.xticks(xs, epsilons)
     plt.yscale('log')
     plt.plot()
     plt.legend()
