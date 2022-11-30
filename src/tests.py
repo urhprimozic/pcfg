@@ -1,11 +1,8 @@
-from audioop import mul
-from math import factorial
-from utils import partitions_with_zeros, powerset, even, multinomial, exp, sign, partitions
-from tqdm import tqdm
-from nltk import PCFG, nonterminals
-import matplotlib.pyplot as plt
+from utils import  multinomial, exp, partitions, eq_qs
 from queue import Queue
 from linear import mode, kappa
+import numpy as np
+from tqdm import tqdm
 
 def multinomial_aprox_tests(coef, i, *qs, eps=0.01):
     '''
@@ -93,7 +90,40 @@ def mode_test(*qs, i, coef={}):
 
     # bound_par = (i*q/sumQ_q for q in qs)
     # bound = kappa()
-    print('real mode: ', max_par, '   bfs: ', f_mode)
-    print('real max value: ', max_kappa, '   bfs: ', f_kappa)
+    # print('real mode: ', max_par, '   bfs: ', f_mode)
+    # print('real max value: ', max_kappa, '   bfs: ', f_kappa)
+    settings= {'qs': qs, 'i': i}
+    return {'settings' : settings, 'real_mode': max_par, 'f_mode' : f_mode, 'real_value': max_kappa, 'f_value' : f_kappa}
 
-mode_test(0.3, 0.3, 0.3, i=15)
+def run_mode_test(ks, number_of_i, divisors = [1,2,5]):
+    print('Testing for q1=q1=..=qn...')
+    results = []
+    errors = []
+    for k in tqdm(ks, total=len(ks)):
+        for divisor in divisors:
+            qs = eq_qs(k, divisor=divisor)
+            iss = [k+j*5 for j in range(1, number_of_i+1)]
+            for i in iss:
+                #print: "testing with qs = {qs} and i = i"
+                result = mode_test(*qs, i=i)
+                results.append(result)
+                # check for error
+                if result['real_value'] != result['f_value']:
+                    print(f'ERROR! for qs={qs}, i={i}')
+                    print('real_value: ', result['real_value'], 'f_value: ', result['f_value'])
+                    errors.append(result)
+    print('testing random values of qj')
+    for k in tqdm(ks, total=len(ks)):
+        qs = np.random.rand(100)
+        qs = qs / np.linalg.norm(qs)
+        iss = [k+j*5 for j in range(1, number_of_i+1)]
+        for i in iss:
+            #print: "testing with qs = {qs} and i = i"
+            result = mode_test(*qs, i=i)
+            results.append(result)
+            # check for error
+            if result['real_value'] != result['f_value']:
+                print(f'ERROR! for qs={qs}, i={i}')
+                print('real_value: ', result['real_value'], 'f_value: ', result['f_value'])
+                errors.append(result)
+    return results, errors
