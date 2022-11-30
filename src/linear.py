@@ -1,15 +1,7 @@
-from audioop import mul
-from distutils.log import error
-from math import factorial
 from math import log
-from numpy import partition
-from utils import partitions, powerset, even, multinomial, exp, sign
-from tqdm import tqdm
-from nltk import PCFG, nonterminals
-import matplotlib.pyplot as plt
-from queue import Queue
+from utils import powerset, even, multinomial, exp, sign
+from queue import Queue, PriorityQueue
 from scipy.special import binom
-from mpmath import hyp2f1  # hypergeometric function
 from typing import Callable, Tuple
 
 
@@ -52,13 +44,16 @@ def probability_exact(p: float, *qs: float) -> float:
     return ans
 
 
-def integer_maximum_aprox(i, top):
+def mode(i, *qs, coef):
     '''
-    A close integer aproximation for (q1, ..., qk), which sums to i
+    Maximum of Kappa on partitions
 
     - top - (q1, ..., qk)
     - i = sum(q_j)
     '''
+    k = len(qs)
+    sum_q = sum(qs)
+    top = (int(round(i*q/sum_q, 0)) for q in qs)
     ans = list(int(round(q, 0)) for q in top)
     diff = i - sum(ans)
     for index in range(len(ans)):
@@ -66,7 +61,43 @@ def integer_maximum_aprox(i, top):
             break
         ans[index] += sign(diff)
         diff -= sign(diff)
-    return tuple(ans)
+    # some close approximation
+    top =  tuple(ans)
+    # bfs with priority queue
+    q = PriorityQueue()
+    q.put((-kappa(top, *qs, coef=coef), top ))
+    max_kappa = 0
+
+    ans = top
+    visited=set()
+    while not q.empty():
+        value, par = q.get()
+        # fix value to be positive
+        value = -value
+        visited.add(par)
+        # update kappa
+        if value >= max_kappa:
+            ans = par
+            max_kappa = value
+        # check neighbours 
+        for j in range(k):
+            for jj in range(k):
+                if jj == j:
+                    continue
+                new_par = list(par)
+                new_par[jj] += 1
+                new_par[j] -= 1
+                new_par = tuple(new_par)
+                if new_par[j] <= 0:
+                    continue
+                if new_par in visited:
+                    continue
+                # check if new par is higher or equal
+                new_value = kappa(par, *qs, coef=coef)
+                if new_value >= value:
+                    q.put((-new_value, new_par))
+    return ans
+
 
 
 def f_gamma(M, j, p, k, pi):
@@ -88,7 +119,7 @@ def kappa(partition, *qs,  coef):
     prod = 1
     for index, l in enumerate(partition):
         prod *= exp(qs[index], l)
-    return prod*multinomial(*qs, coef=coef)
+    return prod*multinomial(*partition, coef=coef)
 
 
 def get_cs_constant_gamma(max_i, M, i, p, k, pi, epsilon, prev_cs):
@@ -241,10 +272,8 @@ def multinomial_aprox(
     '''
     ans = 0
     k = len(qs)
-    # top is at E[X] = i(q1, ..., qk)
-    sum_q = sum(qs)
-    top = (int(round(i*q/sum_q, 0)) for q in qs)
-    top = integer_maximum_aprox(i, top)
+    # maximum of kappa
+    top = mode(i, *qs, coef=coef)
     # in queue are elements of the sum, yet to be visited
     # parametrised by partitions (l1, ..., lk), where l1 +...+ lk = i
     q = Queue()
@@ -330,7 +359,7 @@ def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose)
     # top is at E[X] = i(q1, ..., qk)
     sum_q = sum(qs)
     top = (int(round(i*q/sum_q, 0)) for q in qs)
-    top = integer_maximum_aprox(i, top)
+    top = mode(i, top)
     # in queue are elements of the sum, yet to be visited
     # parametrised by partitions (l1, ..., lk), where l1 +...+ lk = i
     q = Queue()

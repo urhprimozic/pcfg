@@ -1,11 +1,11 @@
 from audioop import mul
 from math import factorial
-from utils import partitions_with_zeros, powerset, even, multinomial, exp, sign
+from utils import partitions_with_zeros, powerset, even, multinomial, exp, sign, partitions
 from tqdm import tqdm
 from nltk import PCFG, nonterminals
 import matplotlib.pyplot as plt
 from queue import Queue
-from linear import integer_maximum_aprox
+from linear import integer_maximum_aprox, kappa
 
 def multinomial_aprox_tests(coef, i, *qs, eps=0.01):
     '''
@@ -73,3 +73,21 @@ def multinomial_aprox_tests(coef, i, *qs, eps=0.01):
                     continue
                 q.put(tuple(new_partition))
     return ans
+
+
+def mode_test(*qs, i, coef={}):
+    k = len(qs)
+    # actuall calculation:
+    max_kappa = 0
+    for par in partitions(i, k):
+        max_kappa = max(max_kappa, kappa(par, *qs , coef=coef))
+    
+    # mode:
+    sum_q = sum(qs)
+    top = (int(round(i*q/sum_q, 0)) for q in qs)
+    mode  = integer_maximum_aprox(i, top)
+
+    # bound_par = (i*q/sumQ_q for q in qs)
+    # bound = kappa()
+    print('real mode: ', max_kappa, '   bfs: ', mode)
+
