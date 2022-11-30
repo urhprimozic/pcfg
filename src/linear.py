@@ -62,13 +62,11 @@ def mode(i, *qs, coef):
         ans[index] += sign(diff)
         diff -= sign(diff)
     # some close approximation
-    top =  tuple(ans)
+    ans =  tuple(ans)
     # bfs with priority queue
     q = PriorityQueue()
-    q.put((-kappa(top, *qs, coef=coef), top ))
+    q.put((-kappa(ans, *qs, coef=coef), ans ))
     max_kappa = 0
-
-    ans = top
     visited=set()
     while not q.empty():
         value, par = q.get()
@@ -93,7 +91,7 @@ def mode(i, *qs, coef):
                 if new_par in visited:
                     continue
                 # check if new par is higher or equal
-                new_value = kappa(par, *qs, coef=coef)
+                new_value = kappa(new_par, *qs, coef=coef)
                 if new_value >= value:
                     q.put((-new_value, new_par))
     return ans

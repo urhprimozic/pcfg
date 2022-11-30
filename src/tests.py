@@ -5,7 +5,7 @@ from tqdm import tqdm
 from nltk import PCFG, nonterminals
 import matplotlib.pyplot as plt
 from queue import Queue
-from linear import integer_maximum_aprox, kappa
+from linear import mode, kappa
 
 def multinomial_aprox_tests(coef, i, *qs, eps=0.01):
     '''
@@ -19,7 +19,7 @@ def multinomial_aprox_tests(coef, i, *qs, eps=0.01):
     # in queue are elements of the sum, yet to be visited
     # parametrised by partitions (l1, ..., lk), where l1 +...+ lk = i
     q = Queue()
-    q.put(integer_maximum_aprox(i, top))
+    q.put(mode(i, top))
 
     visited = set()
 
@@ -79,15 +79,21 @@ def mode_test(*qs, i, coef={}):
     k = len(qs)
     # actuall calculation:
     max_kappa = 0
+    max_par = None
     for par in partitions(i, k):
-        max_kappa = max(max_kappa, kappa(par, *qs , coef=coef))
+        tmp = kappa(par, *qs , coef=coef)
+        if tmp >= max_kappa:
+            max_kappa = tmp 
+            max_par = par 
     
     # mode:
     sum_q = sum(qs)
-    top = (int(round(i*q/sum_q, 0)) for q in qs)
-    mode  = integer_maximum_aprox(i, top)
+    f_mode  = mode(i, *qs, coef=coef)
+    f_kappa = kappa(f_mode, *qs, coef=coef)
 
     # bound_par = (i*q/sumQ_q for q in qs)
     # bound = kappa()
-    print('real mode: ', max_kappa, '   bfs: ', mode)
+    print('real mode: ', max_par, '   bfs: ', f_mode)
+    print('real max value: ', max_kappa, '   bfs: ', f_kappa)
 
+mode_test(0.3, 0.3, 0.3, i=15)
