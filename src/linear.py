@@ -355,10 +355,11 @@ def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose)
     ans = 0
     k = len(qs)
     # top is at E[X] = i(q1, ..., qk)
-    top, maximal_element = mode(i, *qs, coef=coef)
+    top = mode(i, *qs, coef=coef)
+    maximal_element =  kappa(top, *qs, coef=coef)
     # parametrised by partitions (l1, ..., lk), where l1 +...+ lk = i
     q = PriorityQueue()
-    q.put((- kappa(top, *qs, coef=coef),top))
+    q.put((-maximal_element,top))
 
     visited = set()
 
