@@ -57,6 +57,14 @@ def partitions(i, k):
 
     return f(i, k)
 
+def is_positive(partition):
+    '''
+    True if partition has only positive elements, False otherwise
+    '''
+    for l in partition:
+        if l<= 0:
+            return False
+    return True 
 
 def partitions_with_zeros(i, k):
     '''

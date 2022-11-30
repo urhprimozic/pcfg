@@ -1,5 +1,5 @@
 from math import log
-from utils import powerset, even, multinomial, exp, sign
+from utils import powerset, even, multinomial, exp, sign, is_positive
 from queue import Queue, PriorityQueue
 from scipy.special import binom
 from typing import Callable, Tuple
@@ -73,10 +73,12 @@ def mode(i, *qs, coef):
         # fix value to be positive
         value = -value
         visited.add(par)
-        # update kappa
-        if value >= max_kappa:
-            ans = par
-            max_kappa = value
+        # update kappa only if this partition is strictly positive
+        #(wqe dont want too look at partitions with zero )
+        if is_positive(par):
+            if value >= max_kappa:
+                ans = par
+                max_kappa = value
         # check neighbours 
         for j in range(k):
             for jj in range(k):
@@ -86,6 +88,7 @@ def mode(i, *qs, coef):
                 new_par[jj] += 1
                 new_par[j] -= 1
                 new_par = tuple(new_par)
+                # check if the new partition has more zeros than before
                 if new_par[j] <= 0:
                     continue
                 if new_par in visited:
