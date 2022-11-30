@@ -114,7 +114,7 @@ def run_mode_test(ks, number_of_i, divisors = [1,2,5]):
                     errors.append(result)
     print('testing random values of qj')
     for k in tqdm(ks, total=len(ks)):
-        qs = np.random.rand(100)
+        qs = np.random.rand(k)
         qs = qs / np.linalg.norm(qs)
         iss = [k+j*5 for j in range(1, number_of_i+1)]
         for i in iss:
