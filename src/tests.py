@@ -1,4 +1,4 @@
-from utils import  multinomial, exp, partitions, eq_qs
+from utils import  multinomial, exp, partitions, eq_qs, partitions_with_zeros
 from queue import Queue
 from linear import mode, kappa
 import numpy as np
@@ -116,6 +116,7 @@ def run_mode_test(ks, number_of_i, divisors = [1,2,5]):
     for k in tqdm(ks, total=len(ks)):
         qs = np.random.rand(k)
         qs = qs / np.linalg.norm(qs)
+        qs = qs/sum(qs)
         iss = [k+j*5 for j in range(1, number_of_i+1)]
         for i in iss:
             #print: "testing with qs = {qs} and i = i"

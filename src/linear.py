@@ -355,18 +355,13 @@ def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose)
     ans = 0
     k = len(qs)
     # top is at E[X] = i(q1, ..., qk)
-    sum_q = sum(qs)
-    top = (int(round(i*q/sum_q, 0)) for q in qs)
-    top = mode(i, top)
-    # in queue are elements of the sum, yet to be visited
+    top, maximal_element = mode(i, *qs, coef=coef)
     # parametrised by partitions (l1, ..., lk), where l1 +...+ lk = i
-    q = Queue()
-    q.put(top)
+    q = PriorityQueue()
+    q.put((- kappa(top, *qs, coef=coef),top))
 
     visited = set()
 
-    # get maximal element
-    maximal_element = kappa(top, *qs, coef=coef)
     # update minimal element calculated
     minimal_element = maximal_element
 
@@ -376,7 +371,12 @@ def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose)
 
     while not q.empty():
         # get new  partition
-        partition = q.get()
+        value, partition = q.get()
+        value = -value
+
+        # add the partition
+        ans += value
+
         if partition in visited:
             continue
 
@@ -384,21 +384,8 @@ def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose)
         visited.add(partition)
         n_visited += 1
 
-        # get new coeficient
-        if coef.get(partition) is None:
-            coef[partition] = multinomial(*partition, coef=coef)
-
-        # get the element of the sum, coresponding to the partition
-        prod = 1
-        for index, l in enumerate(partition):
-            prod *= exp(qs[index], l)
-        # curr - current element of the sum
-        curr = coef[partition]*prod
-        # add to the inner sum aproximation
-        ans += curr
-
         # update minimal element
-        minimal_element = min(minimal_element, curr)
+        minimal_element = min(minimal_element, value)
 
         # recalculate the error:
         error_estimation = minimal_element*(n_partitions - n_visited)
@@ -415,7 +402,9 @@ def adaptive_multinomial_aprox(coef: dict, i: int, *qs, epsilon: float, verbose)
                 new_partition[j] -= 1
                 if new_partition[j] <= 0:
                     continue
-                q.put(tuple(new_partition))
+                new_partition = tuple(new_partition)
+                new_value = kappa(new_partition, *qs, coef=coef)
+                q.put((-new_value, new_partition))
     # print(f"    Computed size: {n_visited / n_partitions}")
     return ans,  epsilon - error_estimation 
 
